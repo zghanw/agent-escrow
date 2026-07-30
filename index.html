@@ -134,6 +134,16 @@
     border: 1px solid transparent;
   }
   .bounty-row:hover { background: #0d0f13; border-color: var(--border); }
+  .feed-item {
+    display: flex;
+    gap: 10px;
+    padding: 6px 4px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-time { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  #eventFeed { max-height: 220px; overflow-y: auto; }
   .bounty-row .bounty-id { color: var(--muted); font-size: 0.8rem; min-width: 34px; }
   .bounty-row .bounty-desc { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #log { margin-top: 6px; font-size: 0.85rem; min-height: 1.2em; }
@@ -161,6 +171,12 @@
     <span>Wrong network — this app runs on BOT Chain testnet.</span>
     <button id="addNetworkBtn" class="secondary">Add / Switch to BOT Chain</button>
   </div>
+
+  <section class="panel">
+    <h2>Live activity</h2>
+    <p id="eventFeedEmpty" class="muted">Watching the contract for new activity — actions you or anyone else takes will appear here in real time.</p>
+    <div id="eventFeed"></div>
+  </section>
 
   <section class="panel">
     <h2>Create a bounty</h2>
@@ -257,9 +273,12 @@
   const submitRatingBtn = $("submitRatingBtn");
   const recentBounties = $("recentBounties");
   const recentBountiesEmpty = $("recentBountiesEmpty");
+  const eventFeed = $("eventFeed");
+  const eventFeedEmpty = $("eventFeedEmpty");
   const logEl = $("log");
 
   const RECENT_BOUNTIES_LIMIT = 10;
+  const FEED_LIMIT = 25;
 
   let provider = null;
   let signer = null;
@@ -371,9 +390,49 @@
     signerAddress = accounts[0];
     provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
+    if (contract) contract.removeAllListeners();
     contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+    setupEventFeed();
     await refreshWalletUI();
     log("");
+  }
+
+  function addFeedEntry(text) {
+    eventFeedEmpty.style.display = "none";
+    const item = document.createElement("div");
+    item.className = "feed-item";
+
+    const time = document.createElement("span");
+    time.className = "feed-time";
+    time.textContent = new Date().toLocaleTimeString();
+
+    const msg = document.createElement("span");
+    msg.textContent = text;
+
+    item.appendChild(time);
+    item.appendChild(msg);
+    eventFeed.insertBefore(item, eventFeed.firstChild);
+    while (eventFeed.children.length > FEED_LIMIT) {
+      eventFeed.removeChild(eventFeed.lastChild);
+    }
+  }
+
+  function setupEventFeed() {
+    contract.on("BountyCreated", (id, requester, amount, description) => {
+      addFeedEntry("Bounty #" + id.toString() + " created for " + ethers.formatEther(amount) + " BOT — \"" + description + "\"");
+    });
+    contract.on("BountyClaimed", (id, agent) => {
+      addFeedEntry("Bounty #" + id.toString() + " claimed by " + shortAddr(agent));
+    });
+    contract.on("BountyReleased", (id, agent, amount) => {
+      addFeedEntry("Bounty #" + id.toString() + " released — " + ethers.formatEther(amount) + " BOT paid to " + shortAddr(agent));
+    });
+    contract.on("BountyRefunded", (id, requester, amount) => {
+      addFeedEntry("Bounty #" + id.toString() + " refunded — " + ethers.formatEther(amount) + " BOT back to " + shortAddr(requester));
+    });
+    contract.on("AgentRated", (bountyId, agent, requester, score) => {
+      addFeedEntry("Bounty #" + bountyId.toString() + ": " + shortAddr(agent) + " rated " + score.toString() + "/5");
+    });
   }
 
   function describeConnectError(err) {
