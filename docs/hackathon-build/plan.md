@@ -14,7 +14,7 @@ feature tasks).
 | # | Task | Tier | Feature Zero? |
 |---|---|---|---|
 | 1 | Hardhat project scaffold + BOT Chain testnet network config | haiku | yes |
-| 2 | `AgentEscrow.sol` — createBounty/claimBounty/release/refund, ReentrancyGuard, checks-effects-interactions | sonnet | yes |
+| 2 | `AgentEscrow.sol` - createBounty/claimBounty/release/refund, ReentrancyGuard, checks-effects-interactions | sonnet | yes |
 | 3 | Hardhat test: happy-path create→claim→release moves funds correctly, refund returns funds, reentrancy guard holds | sonnet | yes |
 | 4 | Deploy script; deploy to BOT Chain testnet; verify on scan.bohr.life | haiku | yes |
 | 5 | `index.html`: wallet connect, one-click "Add BOT Chain" network button, ABI + deployed address wired via ethers.js | sonnet | yes |
@@ -24,7 +24,7 @@ feature tasks).
 | 9 | Live on-chain event feed: `contract.on()` listeners rendering Created/Claimed/Released/Refunded/Rated as a running feed | sonnet | no |
 | 10 | Bounty list view: iterate `bountyCount`, render every open/claimed bounty, not just the last one | sonnet | no |
 | 11 | 3-step progress tracker UI (Created → Claimed → Released) + block-explorer deep links per bounty/tx | haiku | no |
-| 12 | Refund flow wired into the UI (contract function already exists from task 2 — this is the button + state handling) | haiku | no |
+| 12 | Refund flow wired into the UI (contract function already exists from task 2 - this is the button + state handling) | haiku | no |
 | 13 | Demo GIF recording + `README.md` (what it does, how to use it, contract address, live link) | haiku | no |
 
 ## Task details
@@ -41,11 +41,11 @@ feature tasks).
 
 ### Task 2: AgentEscrow.sol
 
-**What ships:** the core contract — `Bounty` struct, `bounties` mapping, `bountyCount`, `createBounty(string) payable`, `claimBounty(uint256)`, `release(uint256)`, `refund(uint256)`, all five events (`BountyCreated`, `BountyClaimed`, `BountyReleased`, `BountyRefunded` — `AgentRated` comes in Task 8). Inherits OpenZeppelin `ReentrancyGuard`; `release`/`refund` set status *before* the external value transfer (checks-effects-interactions), guarded with `nonReentrant`.
+**What ships:** the core contract - `Bounty` struct, `bounties` mapping, `bountyCount`, `createBounty(string) payable`, `claimBounty(uint256)`, `release(uint256)`, `refund(uint256)`, all five events (`BountyCreated`, `BountyClaimed`, `BountyReleased`, `BountyRefunded` - `AgentRated` comes in Task 8). Inherits OpenZeppelin `ReentrancyGuard`; `release`/`refund` set status *before* the external value transfer (checks-effects-interactions), guarded with `nonReentrant`.
 **Files touched:** `contracts/AgentEscrow.sol`, `package.json` (add `@openzeppelin/contracts`)
 **Definition of done:** compiles clean; `claimBounty` reverts if `msg.sender == requester` or status isn't `Open`; `release`/`refund` revert if caller isn't the requester or status isn't `Claimed`.
 
-### Task 3: Hardhat test — money-path self-check
+### Task 3: Hardhat test - money-path self-check
 
 **What ships:** one test file proving the fund-moving logic actually moves funds correctly. This is the mandatory check for a money/security path, not optional coverage.
 **Files touched:** `test/AgentEscrow.test.js`
@@ -53,25 +53,25 @@ feature tasks).
 
 ### Task 4: Deploy + verify on BOT Chain testnet
 
-**What ships:** `scripts/deploy.js` deploys `AgentEscrow` to `botchainTestnet` and logs the address; the contract is verified on `scan.bohr.life` (confirm live whether the verify plugin needs Blockscout or Etherscan config — dev-docs 403'd on fetch, check in-browser).
+**What ships:** `scripts/deploy.js` deploys `AgentEscrow` to `botchainTestnet` and logs the address; the contract is verified on `scan.bohr.life` (confirm live whether the verify plugin needs Blockscout or Etherscan config - dev-docs 403'd on fetch, check in-browser).
 **Files touched:** `scripts/deploy.js`, `hardhat.config.js` (verify config)
 **Definition of done:** the deployed address resolves on `https://scan.bohr.life/address/<address>` showing verified source code, not just bytecode.
 
-### Task 5: index.html — wallet connect + contract wiring
+### Task 5: index.html - wallet connect + contract wiring
 
 **What ships:** single-file frontend: "Connect Wallet" button (MetaMask via `window.ethereum`), a "you're not on BOT Chain" banner with a button that calls `wallet_addEthereumChain` using the Task 1 network config, and the contract ABI + deployed address (from Task 4) wired through ethers.js v6 (CDN `<script>`, no bundler).
 **Files touched:** `index.html` (new)
-**Definition of done:** opening the page with no BOT Chain network configured, clicking connect, and clicking "Add BOT Chain" leaves MetaMask correctly configured and connected — verified with a fresh MetaMask profile, not one that already has the network added.
+**Definition of done:** opening the page with no BOT Chain network configured, clicking connect, and clicking "Add BOT Chain" leaves MetaMask correctly configured and connected - verified with a fresh MetaMask profile, not one that already has the network added.
 
 ### Task 6: Create / claim / release flow in the UI
 
-**What ships:** a form to create a bounty (description + BOT amount), a claim button (visible when a bounty is `Open` and the connected wallet isn't the requester), a release button (visible to the requester when `Claimed`) — each calling the matching contract function and updating the on-screen status from the transaction receipt, no manual refresh needed.
+**What ships:** a form to create a bounty (description + BOT amount), a claim button (visible when a bounty is `Open` and the connected wallet isn't the requester), a release button (visible to the requester when `Claimed`) - each calling the matching contract function and updating the on-screen status from the transaction receipt, no manual refresh needed.
 **Files touched:** `index.html`
 **Definition of done:** the Feature Zero definition of done in spec.md passes: full create → claim → release with two real MetaMask accounts, balances and status updating live.
 
 ### Task 7: Deploy to GitHub Pages + cold end-to-end verification
 
-**What ships:** `index.html` live at the repo's GitHub Pages URL (Settings → Pages → deploy from branch/`docs` folder — pick whichever needs the least repo restructuring).
+**What ships:** `index.html` live at the repo's GitHub Pages URL (Settings → Pages → deploy from branch/`docs` folder - pick whichever needs the least repo restructuring).
 **Files touched:** repo settings (no code files, or a move of `index.html` into `/docs` if Pages requires it)
 **Definition of done:** the live GitHub Pages URL (not localhost, not a `file://` path) runs the full Feature Zero flow end to end.
 

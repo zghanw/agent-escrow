@@ -39,7 +39,7 @@ Implemented directly (no subagent dispatch), per the team's standing decision fr
 
 ### Task 4: Form controls
 
-**What ships:** buttons (primary/secondary/danger), text inputs, textarea, and the rating `<select>` restyled to the new tokens — Geist Mono on buttons, sharp `--radius-sm`/`--radius-md`.
+**What ships:** buttons (primary/secondary/danger), text inputs, textarea, and the rating `<select>` restyled to the new tokens - Geist Mono on buttons, sharp `--radius-sm`/`--radius-md`.
 **Files touched:** `index.html`
 **Definition of done:** every interactive control reads from the new tokens, none left on the old hardcoded dark-theme values.
 

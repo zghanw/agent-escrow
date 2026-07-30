@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Agent Escrow — BOT Chain</title>
+<title>Agent Escrow - BOT Chain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Design system replicated from https://www.nextjsshop.com/templates/nexflow —
+  /* Design system replicated from https://www.nextjsshop.com/templates/nexflow -
      light "paper" page shell + dark embedded dashboard cards, sharp corners,
      Geist / Geist Mono. See docs/hackathon-ui/design-system.md. */
   :root {
@@ -275,7 +275,7 @@
   </div>
 
   <div id="networkBanner" class="banner bad" style="display:none;">
-    <span>Wrong network — this app runs on BOT Chain testnet.</span>
+    <span>Wrong network - this app runs on BOT Chain testnet.</span>
     <button id="addNetworkBtn" class="secondary">Add / Switch to BOT Chain</button>
   </div>
 
@@ -283,7 +283,7 @@
 
   <section class="panel">
     <h2>Live activity</h2>
-    <p id="eventFeedEmpty" class="muted">Watching the contract for new activity — actions you or anyone else takes will appear here in real time.</p>
+    <p id="eventFeedEmpty" class="muted">Watching the contract for new activity - actions you or anyone else takes will appear here in real time.</p>
     <div id="eventFeed"></div>
   </section>
 
@@ -336,11 +336,11 @@
     <div id="actionRow" class="row" style="margin-top:14px;"></div>
     <div id="ratingRow" class="row" style="margin-top:10px; display:none;">
       <select id="ratingSelect" style="width:auto; max-width:180px;">
-        <option value="5">5 — excellent</option>
-        <option value="4">4 — good</option>
-        <option value="3">3 — okay</option>
-        <option value="2">2 — poor</option>
-        <option value="1">1 — bad</option>
+        <option value="5">5 - excellent</option>
+        <option value="4">4 - good</option>
+        <option value="3">3 - okay</option>
+        <option value="2">2 - poor</option>
+        <option value="1">1 - bad</option>
       </select>
       <button id="submitRatingBtn" class="secondary">Rate Agent</button>
     </div>
@@ -454,7 +454,7 @@
       const count = await contract.bountyCount();
       recentBounties.innerHTML = "";
       if (count === 0n) {
-        recentBountiesEmpty.textContent = "No bounties yet — create the first one above.";
+        recentBountiesEmpty.textContent = "No bounties yet - create the first one above.";
         recentBountiesEmpty.style.display = "block";
         return;
       }
@@ -544,16 +544,16 @@
 
   function setupEventFeed() {
     contract.on("BountyCreated", (id, requester, amount, description) => {
-      addFeedEntry("Bounty #" + id.toString() + " created for " + ethers.formatEther(amount) + " BOT — \"" + description + "\"");
+      addFeedEntry("Bounty #" + id.toString() + " created for " + ethers.formatEther(amount) + " BOT - \"" + description + "\"");
     });
     contract.on("BountyClaimed", (id, agent) => {
       addFeedEntry("Bounty #" + id.toString() + " claimed by " + shortAddr(agent));
     });
     contract.on("BountyReleased", (id, agent, amount) => {
-      addFeedEntry("Bounty #" + id.toString() + " released — " + ethers.formatEther(amount) + " BOT paid to " + shortAddr(agent));
+      addFeedEntry("Bounty #" + id.toString() + " released - " + ethers.formatEther(amount) + " BOT paid to " + shortAddr(agent));
     });
     contract.on("BountyRefunded", (id, requester, amount) => {
-      addFeedEntry("Bounty #" + id.toString() + " refunded — " + ethers.formatEther(amount) + " BOT back to " + shortAddr(requester));
+      addFeedEntry("Bounty #" + id.toString() + " refunded - " + ethers.formatEther(amount) + " BOT back to " + shortAddr(requester));
     });
     contract.on("AgentRated", (bountyId, agent, requester, score) => {
       addFeedEntry("Bounty #" + bountyId.toString() + ": " + shortAddr(agent) + " rated " + score.toString() + "/5");
@@ -562,13 +562,13 @@
 
   function describeConnectError(err) {
     if (err && err.code === 4001) return "Connection request rejected in MetaMask.";
-    if (err && err.code === -32002) return "MetaMask already has a connection request open — check your browser toolbar for the MetaMask icon.";
+    if (err && err.code === -32002) return "MetaMask already has a connection request open - check your browser toolbar for the MetaMask icon.";
     return "MetaMask didn't respond as expected. Click the MetaMask icon in your toolbar and connect this site directly, then reload.";
   }
 
   // Calling the raw provider method (instead of routing through ethers'
   // BrowserProvider.send) avoids ethers wrapping some MetaMask error shapes
-  // into an opaque "could not coalesce error" — this way we get MetaMask's
+  // into an opaque "could not coalesce error" - this way we get MetaMask's
   // own error code/message to show something actionable.
   async function connectWallet() {
     if (!window.ethereum) {
@@ -580,7 +580,7 @@
       await useAccounts(accounts);
     } catch (err) {
       // The request may have actually been approved (e.g. via the MetaMask
-      // toolbar icon) even though this call threw — check before giving up.
+      // toolbar icon) even though this call threw - check before giving up.
       try {
         const accounts = await window.ethereum.request({ method: "eth_accounts" });
         if (accounts.length > 0) {
@@ -693,7 +693,7 @@
 
       const alreadyRated = await contract.bountyRated(id);
       renderActions(statusName, bounty.requester, bounty.agent, alreadyRated);
-      // Deliberately not clearing the log here — a caller that just
+      // Deliberately not clearing the log here - a caller that just
       // completed a transaction (create/claim/release/refund/rate) wants
       // its "View transaction" link to survive this refresh, not vanish.
     } catch (err) {
@@ -839,7 +839,7 @@
         await refreshWalletUI();
         return;
       }
-      // Re-fetch the signer for the newly-selected account — a signer
+      // Re-fetch the signer for the newly-selected account - a signer
       // object is bound to the address it was created for, it doesn't
       // follow a later account switch on its own.
       await useAccounts(accounts);
