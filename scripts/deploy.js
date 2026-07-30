@@ -1,13 +1,15 @@
 import hre from "hardhat";
 import { ethers } from "ethers";
-import { BOTCHAIN_TESTNET } from "../config.mjs";
 
 async function main() {
-  // Read network config from hardhat.config.js via shared config.mjs
-  const networkName = hre.network.name;
-  const { url, chainId: expectedChainId } = BOTCHAIN_TESTNET;
+  // Read network config from hardhat.config.js via hre
+  // Note: hardhat.config.js reads BOTCHAIN_RPC_URL from environment with a default fallback,
+  // so we read from the same source to ensure consistency
+  const botchainConfig = hre.config.networks.botchainTestnet;
+  const url = process.env.BOTCHAIN_RPC_URL || "https://rpc.bohr.life";
+  const expectedChainId = botchainConfig.chainId;
 
-  console.log(`Connecting to network: ${networkName}`);
+  console.log(`Connecting to BOT Chain testnet...`);
   console.log(`RPC URL: ${url}`);
   console.log(`Expected Chain ID: ${expectedChainId}`);
 
