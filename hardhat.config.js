@@ -14,4 +14,16 @@ export default {
       type: "http",
     },
   },
+  chainDescriptors: {
+    968: {
+      name: "BOT Chain Testnet",
+      blockExplorers: {
+        blockscout: {
+          name: "BOT Chain Explorer",
+          url: "https://scan.bohr.life",
+          apiUrl: "https://scan.bohr.life/api",
+        },
+      },
+    },
+  },
 };

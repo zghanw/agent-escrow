@@ -1,28 +1,27 @@
 import hre from "hardhat";
 
 async function main() {
-  // Get the network connection that Hardhat configured via --network flag
-  // This connection uses the URL and chainId from hardhat.config.js, no duplication
-  const network = await hre.network.connect();
-  const provider = network.provider;
-  const expectedChainId = network.networkConfig.chainId;
+  const connection = await hre.network.create();
+  const { ethers, networkConfig } = connection;
 
-  console.log(`Connecting to BOT Chain testnet via Hardhat-configured network...`);
-  console.log(`Expected Chain ID: ${expectedChainId}`);
+  console.log(`Deploying to network (expected chain ID ${networkConfig.chainId})...`);
 
-  // Test connectivity using Hardhat's configured provider
-  // Call eth_chainId via JSON-RPC to verify we can reach the network
-  const chainIdHex = await provider.request({ method: "eth_chainId" });
-  const actualChainId = parseInt(chainIdHex, 16);
-  console.log(`Connected! Actual Chain ID: ${actualChainId}`);
+  const [deployer] = await ethers.getSigners();
+  const balance = await ethers.provider.getBalance(deployer.address);
+  console.log(`Deployer: ${deployer.address} (balance: ${ethers.formatEther(balance)} BOT)`);
 
-  // Verify chain ID matches hardhat.config.js
-  if (actualChainId !== expectedChainId) {
+  if (balance === 0n) {
     throw new Error(
-      `Chain ID mismatch: expected ${expectedChainId}, got ${actualChainId}`
+      `Deployer has no BOT. Fund ${deployer.address} from the testnet faucet before deploying.`
     );
   }
-  console.log("Chain ID verified!");
+
+  const escrow = await ethers.deployContract("AgentEscrow");
+  await escrow.waitForDeployment();
+
+  const address = await escrow.getAddress();
+  console.log(`AgentEscrow deployed to: ${address}`);
+  console.log(`Explorer: https://scan.bohr.life/address/${address}`);
 }
 
 main().catch((error) => {
