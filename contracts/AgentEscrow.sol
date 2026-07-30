@@ -20,13 +20,24 @@ contract AgentEscrow is ReentrancyGuard {
         uint256 createdAt;
     }
 
+    struct Rating {
+        address requester;
+        uint256 bountyId;
+        uint8 score;
+        uint256 ratedAt;
+    }
+
     mapping(uint256 => Bounty) public bounties;
     uint256 public bountyCount;
+
+    mapping(address => Rating[]) public agentRatings;
+    mapping(uint256 => bool) public bountyRated;
 
     event BountyCreated(uint256 indexed id, address indexed requester, uint256 amount, string description);
     event BountyClaimed(uint256 indexed id, address indexed agent);
     event BountyReleased(uint256 indexed id, address indexed agent, uint256 amount);
     event BountyRefunded(uint256 indexed id, address indexed requester, uint256 amount);
+    event AgentRated(uint256 indexed bountyId, address indexed agent, address indexed requester, uint8 score);
 
     function createBounty(string calldata description) external payable returns (uint256 id) {
         require(msg.value > 0, "Bounty must include payment");
@@ -85,5 +96,31 @@ contract AgentEscrow is ReentrancyGuard {
         require(success, "Refund transfer failed");
 
         emit BountyRefunded(id, msg.sender, amount);
+    }
+
+    function rateAgent(uint256 id, uint8 score) external {
+        Bounty storage bounty = bounties[id];
+        require(msg.sender == bounty.requester, "Only requester can rate");
+        require(bounty.status == Status.Released, "Bounty not released");
+        require(!bountyRated[id], "Bounty already rated");
+        require(score >= 1 && score <= 5, "Score must be 1-5");
+
+        bountyRated[id] = true;
+        agentRatings[bounty.agent].push(Rating({
+            requester: msg.sender,
+            bountyId: id,
+            score: score,
+            ratedAt: block.timestamp
+        }));
+
+        emit AgentRated(id, bounty.agent, msg.sender, score);
+    }
+
+    function getAgentRatingSummary(address agent) external view returns (uint256 totalScore, uint256 count) {
+        Rating[] storage ratings = agentRatings[agent];
+        count = ratings.length;
+        for (uint256 i = 0; i < count; i++) {
+            totalScore += ratings[i].score;
+        }
     }
 }

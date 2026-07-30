@@ -75,7 +75,7 @@
   }
   button.secondary:hover:not(:disabled) { border-color: var(--accent); }
   button.danger { background: var(--bad); }
-  input, textarea {
+  input, textarea, select {
     width: 100%;
     background: #0d0f13;
     border: 1px solid var(--border);
@@ -201,9 +201,21 @@
       <dd id="detailRequester" class="mono"></dd>
       <dt>Agent</dt>
       <dd id="detailAgent" class="mono"></dd>
+      <dt>Agent rating</dt>
+      <dd id="detailAgentRating"></dd>
     </dl>
 
     <div id="actionRow" class="row" style="margin-top:14px;"></div>
+    <div id="ratingRow" class="row" style="margin-top:10px; display:none;">
+      <select id="ratingSelect" style="width:auto; max-width:180px;">
+        <option value="5">5 — excellent</option>
+        <option value="4">4 — good</option>
+        <option value="3">3 — okay</option>
+        <option value="2">2 — poor</option>
+        <option value="1">1 — bad</option>
+      </select>
+      <button id="submitRatingBtn" class="secondary">Rate Agent</button>
+    </div>
   </section>
 
   <div id="log"></div>
@@ -214,8 +226,8 @@
 (function () {
   "use strict";
 
-  const CONTRACT_ADDRESS = "0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B";
-  const CONTRACT_ABI = [{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"}],"name":"BountyClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"string","name":"description","type":"string"}],"name":"BountyCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyRefunded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyReleased","type":"event"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"bounties","outputs":[{"internalType":"address","name":"requester","type":"address"},{"internalType":"address","name":"agent","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"string","name":"description","type":"string"},{"internalType":"enum AgentEscrow.Status","name":"status","type":"uint8"},{"internalType":"uint256","name":"createdAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"bountyCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"claimBounty","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"description","type":"string"}],"name":"createBounty","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"refund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"release","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+  const CONTRACT_ADDRESS = "0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1";
+  const CONTRACT_ABI = [{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"bountyId","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint8","name":"score","type":"uint8"}],"name":"AgentRated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"}],"name":"BountyClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"string","name":"description","type":"string"}],"name":"BountyCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyRefunded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyReleased","type":"event"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"agentRatings","outputs":[{"internalType":"address","name":"requester","type":"address"},{"internalType":"uint256","name":"bountyId","type":"uint256"},{"internalType":"uint8","name":"score","type":"uint8"},{"internalType":"uint256","name":"ratedAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"bounties","outputs":[{"internalType":"address","name":"requester","type":"address"},{"internalType":"address","name":"agent","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"string","name":"description","type":"string"},{"internalType":"enum AgentEscrow.Status","name":"status","type":"uint8"},{"internalType":"uint256","name":"createdAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"bountyCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"bountyRated","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"claimBounty","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"description","type":"string"}],"name":"createBounty","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"agent","type":"address"}],"name":"getAgentRatingSummary","outputs":[{"internalType":"uint256","name":"totalScore","type":"uint256"},{"internalType":"uint256","name":"count","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint8","name":"score","type":"uint8"}],"name":"rateAgent","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"refund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"release","outputs":[],"stateMutability":"nonpayable","type":"function"}];
 
   const BOTCHAIN_TESTNET = {
     chainId: "0x3C8", // 968
@@ -240,6 +252,9 @@
   const bountyIdInput = $("bountyIdInput");
   const bountyDetail = $("bountyDetail");
   const actionRow = $("actionRow");
+  const ratingRow = $("ratingRow");
+  const ratingSelect = $("ratingSelect");
+  const submitRatingBtn = $("submitRatingBtn");
   const recentBounties = $("recentBounties");
   const recentBountiesEmpty = $("recentBountiesEmpty");
   const logEl = $("log");
@@ -488,16 +503,27 @@
       $("detailAmount").textContent = ethers.formatEther(bounty.amount) + " BOT";
       $("detailRequester").textContent = bounty.requester;
       $("detailAgent").textContent = bounty.agent === ethers.ZeroAddress ? "(none yet)" : bounty.agent;
+      $("detailAgentRating").textContent = await describeAgentRating(bounty.agent);
 
-      renderActions(statusName, bounty.requester, bounty.agent);
+      const alreadyRated = await contract.bountyRated(id);
+      renderActions(statusName, bounty.requester, bounty.agent, alreadyRated);
       log("");
     } catch (err) {
       log("Load failed: " + (err.shortMessage || err.message), "err");
     }
   }
 
-  function renderActions(statusName, requester, agent) {
+  async function describeAgentRating(agent) {
+    if (agent === ethers.ZeroAddress) return "(no agent yet)";
+    const summary = await contract.getAgentRatingSummary(agent);
+    if (summary.count === 0n) return "No ratings yet";
+    const average = Number(summary.totalScore) / Number(summary.count);
+    return average.toFixed(1) + " / 5 (" + summary.count.toString() + " rating" + (summary.count === 1n ? "" : "s") + ")";
+  }
+
+  function renderActions(statusName, requester, agent, alreadyRated) {
     actionRow.innerHTML = "";
+    ratingRow.style.display = "none";
     if (!signerAddress) return;
 
     const isRequester = signerAddress.toLowerCase() === requester.toLowerCase();
@@ -524,7 +550,28 @@
         return writable.refund(currentBountyId);
       }, "danger");
     }
+    if (statusName === "Released" && isRequester && !alreadyRated) {
+      ratingRow.style.display = "flex";
+    }
   }
+
+  submitRatingBtn.addEventListener("click", async () => {
+    submitRatingBtn.disabled = true;
+    try {
+      log("Confirm the transaction in your wallet…", "pending");
+      const writable = requireSignerContract();
+      const tx = await writable.rateAgent(currentBountyId, Number(ratingSelect.value));
+      log("Transaction sent, waiting for confirmation…", "pending");
+      await tx.wait();
+      log("Rating submitted.", "ok");
+      await loadBounty(currentBountyId);
+      await refreshRecentBounties();
+    } catch (err) {
+      log("Rating failed: " + (err.shortMessage || err.message), "err");
+    } finally {
+      submitRatingBtn.disabled = false;
+    }
+  });
 
   function addActionButton(label, action, cssClass) {
     const btn = document.createElement("button");
