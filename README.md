@@ -6,7 +6,7 @@
      ![Agent Escrow demo](demo.gif)
      This GIF also doubles as the asset for the required X post. -->
 
-Post a BOT bounty for a task, an agent wallet claims it and delivers, you release payment on-chain - no middleman, no "trust me" IOU. Built for the [BOTChain Build Week Hackathon](https://www.girlmeetstech.org/guidebook-build-week-hackathon).
+Post a BOT bounty for a task, an agent wallet claims it and delivers, you release payment on-chain - no middleman, no "trust me" IOU.
 
 **Live app:** https://zghanw.github.io/agent-escrow/
 **Contract (BOT Chain testnet, verified):** [`0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1`](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code)
