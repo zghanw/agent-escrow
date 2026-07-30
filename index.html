@@ -260,21 +260,44 @@
     loadBtn.disabled = !onBotChain;
   }
 
+  async function useAccounts(accounts) {
+    signerAddress = accounts[0];
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+    await refreshWalletUI();
+    log("");
+  }
+
+  function describeConnectError(err) {
+    if (err && err.code === 4001) return "Connection request rejected in MetaMask.";
+    if (err && err.code === -32002) return "MetaMask already has a connection request open — check your browser toolbar for the MetaMask icon.";
+    return "MetaMask didn't respond as expected. Click the MetaMask icon in your toolbar and connect this site directly, then reload.";
+  }
+
+  // Calling the raw provider method (instead of routing through ethers'
+  // BrowserProvider.send) avoids ethers wrapping some MetaMask error shapes
+  // into an opaque "could not coalesce error" — this way we get MetaMask's
+  // own error code/message to show something actionable.
   async function connectWallet() {
     if (!window.ethereum) {
       log("No wallet found. Install MetaMask to use this app.", "err");
       return;
     }
     try {
-      provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
-      signerAddress = accounts[0];
-      signer = await provider.getSigner();
-      contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-      await refreshWalletUI();
-      log("");
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      await useAccounts(accounts);
     } catch (err) {
-      log("Connection failed: " + (err.shortMessage || err.message), "err");
+      // The request may have actually been approved (e.g. via the MetaMask
+      // toolbar icon) even though this call threw — check before giving up.
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          await useAccounts(accounts);
+          return;
+        }
+      } catch (_) { /* fall through to the error message below */ }
+      log(describeConnectError(err), "err");
     }
   }
 
@@ -438,21 +461,43 @@
   loadBtn.addEventListener("click", () => loadBounty());
 
   if (window.ethereum) {
-    window.ethereum.on("accountsChanged", (accounts) => {
+    window.ethereum.on("accountsChanged", async (accounts) => {
       if (accounts.length === 0) {
         signerAddress = null;
         signer = null;
-      } else {
-        signerAddress = accounts[0];
+        await refreshWalletUI();
+        return;
       }
-      refreshWalletUI();
+      // Re-fetch the signer for the newly-selected account — a signer
+      // object is bound to the address it was created for, it doesn't
+      // follow a later account switch on its own.
+      await useAccounts(accounts);
+      if (currentBountyId !== null) await loadBounty(currentBountyId);
     });
     window.ethereum.on("chainChanged", () => {
       refreshWalletUI();
     });
   }
 
-  refreshWalletUI();
+  // If MetaMask already has this site authorized (from a previous visit,
+  // or because the user approved it directly via the extension icon),
+  // pick that up without requiring another click.
+  (async function initialConnectCheck() {
+    if (!window.ethereum) {
+      await refreshWalletUI();
+      return;
+    }
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (accounts.length > 0) {
+        await useAccounts(accounts);
+      } else {
+        await refreshWalletUI();
+      }
+    } catch (_) {
+      await refreshWalletUI();
+    }
+  })();
 })();
 </script>
 </body>
