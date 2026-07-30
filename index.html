@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agent Escrow — BOT Chain</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #e8eaed;
+    --muted: #9aa0ab;
+    --accent: #5b8cff;
+    --accent-hover: #4677f0;
+    --good: #34c37b;
+    --warn: #e0a33e;
+    --bad: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  header {
+    margin-bottom: 28px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+  }
+  .tagline {
+    color: var(--muted);
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .panel h2 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  button.secondary:hover:not(:disabled) { border-color: var(--accent); }
+  button.danger { background: var(--bad); }
+  input, textarea {
+    width: 100%;
+    background: #0d0f13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+  label:first-child { margin-top: 0; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .banner {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .banner.warn { background: rgba(224, 163, 62, 0.12); border: 1px solid var(--warn); }
+  .banner.good { background: rgba(52, 195, 123, 0.1); border: 1px solid var(--good); }
+  .banner.bad { background: rgba(224, 90, 90, 0.1); border: 1px solid var(--bad); }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .status-Open { background: rgba(224, 163, 62, 0.2); color: var(--warn); }
+  .status-Claimed { background: rgba(91, 140, 255, 0.2); color: var(--accent); }
+  .status-Released { background: rgba(52, 195, 123, 0.2); color: var(--good); }
+  .status-Refunded { background: rgba(154, 160, 171, 0.2); color: var(--muted); }
+  .field { margin-bottom: 4px; }
+  .muted { color: var(--muted); font-size: 0.85rem; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+  #bountyDetail { display: none; }
+  #bountyDetail dt { color: var(--muted); font-size: 0.8rem; margin-top: 10px; }
+  #bountyDetail dd { margin: 2px 0 0; }
+  #log { margin-top: 6px; font-size: 0.85rem; min-height: 1.2em; }
+  #log.pending { color: var(--warn); }
+  #log.ok { color: var(--good); }
+  #log.err { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Agent Escrow</h1>
+    <p class="tagline">Post a BOT bounty, an agent claims it, you release payment on-chain. No middleman.</p>
+  </header>
+
+  <div id="walletBanner" class="banner warn">
+    <span>Wallet not connected.</span>
+    <button id="connectBtn">Connect Wallet</button>
+  </div>
+
+  <div id="networkBanner" class="banner bad" style="display:none;">
+    <span>Wrong network — this app runs on BOT Chain testnet.</span>
+    <button id="addNetworkBtn" class="secondary">Add / Switch to BOT Chain</button>
+  </div>
+
+  <section class="panel">
+    <h2>Create a bounty</h2>
+    <div class="field">
+      <label for="descriptionInput">What needs doing</label>
+      <textarea id="descriptionInput" rows="2" placeholder="e.g. write a 200-word product description"></textarea>
+    </div>
+    <div class="field">
+      <label for="amountInput">Bounty amount (BOT)</label>
+      <input id="amountInput" type="number" min="0" step="0.0001" placeholder="0.05" />
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button id="createBtn" disabled>Create Bounty</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>View a bounty</h2>
+    <div class="row">
+      <input id="bountyIdInput" type="number" min="0" step="1" placeholder="Bounty ID" style="max-width:140px;" />
+      <button id="loadBtn" class="secondary" disabled>Load</button>
+    </div>
+
+    <dl id="bountyDetail">
+      <dt>Status</dt>
+      <dd><span id="detailStatus" class="status-badge"></span></dd>
+      <dt>Description</dt>
+      <dd id="detailDescription"></dd>
+      <dt>Amount</dt>
+      <dd id="detailAmount" class="mono"></dd>
+      <dt>Requester</dt>
+      <dd id="detailRequester" class="mono"></dd>
+      <dt>Agent</dt>
+      <dd id="detailAgent" class="mono"></dd>
+    </dl>
+
+    <div id="actionRow" class="row" style="margin-top:14px;"></div>
+  </section>
+
+  <div id="log"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.17.0/dist/ethers.umd.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const CONTRACT_ADDRESS = "0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B";
+  const CONTRACT_ABI = [{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"}],"name":"BountyClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"string","name":"description","type":"string"}],"name":"BountyCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"requester","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyRefunded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"agent","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"BountyReleased","type":"event"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"bounties","outputs":[{"internalType":"address","name":"requester","type":"address"},{"internalType":"address","name":"agent","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"string","name":"description","type":"string"},{"internalType":"enum AgentEscrow.Status","name":"status","type":"uint8"},{"internalType":"uint256","name":"createdAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"bountyCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"claimBounty","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"description","type":"string"}],"name":"createBounty","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"refund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"release","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+
+  const BOTCHAIN_TESTNET = {
+    chainId: "0x3C8", // 968
+    chainName: "BOT Chain Testnet",
+    nativeCurrency: { name: "BOT", symbol: "BOT", decimals: 18 },
+    rpcUrls: ["https://rpc.bohr.life"],
+    blockExplorerUrls: ["https://scan.bohr.life"],
+  };
+  const BOTCHAIN_CHAIN_ID_DEC = 968;
+
+  const STATUS_NAMES = ["Open", "Claimed", "Released", "Refunded"];
+
+  const $ = (id) => document.getElementById(id);
+  const walletBanner = $("walletBanner");
+  const networkBanner = $("networkBanner");
+  const connectBtn = $("connectBtn");
+  const addNetworkBtn = $("addNetworkBtn");
+  const createBtn = $("createBtn");
+  const loadBtn = $("loadBtn");
+  const bountyIdInput = $("bountyIdInput");
+  const bountyDetail = $("bountyDetail");
+  const actionRow = $("actionRow");
+  const logEl = $("log");
+
+  let provider = null;
+  let signer = null;
+  let signerAddress = null;
+  let contract = null; // read-only, provider-backed
+  let currentBountyId = null;
+
+  function log(message, kind) {
+    logEl.textContent = message;
+    logEl.className = kind || "";
+  }
+
+  function shortAddr(addr) {
+    return addr.slice(0, 6) + "…" + addr.slice(-4);
+  }
+
+  async function refreshWalletUI() {
+    if (!signerAddress) {
+      walletBanner.className = "banner warn";
+      walletBanner.innerHTML = "";
+      const span = document.createElement("span");
+      span.textContent = "Wallet not connected.";
+      walletBanner.appendChild(span);
+      walletBanner.appendChild(connectBtn);
+      createBtn.disabled = true;
+      loadBtn.disabled = true;
+      networkBanner.style.display = "none";
+      return;
+    }
+
+    walletBanner.className = "banner good";
+    walletBanner.innerHTML = "";
+    const span = document.createElement("span");
+    span.textContent = "Connected: " + shortAddr(signerAddress);
+    walletBanner.appendChild(span);
+
+    const network = await provider.getNetwork();
+    const onBotChain = Number(network.chainId) === BOTCHAIN_CHAIN_ID_DEC;
+    networkBanner.style.display = onBotChain ? "none" : "flex";
+    createBtn.disabled = !onBotChain;
+    loadBtn.disabled = !onBotChain;
+  }
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      log("No wallet found. Install MetaMask to use this app.", "err");
+      return;
+    }
+    try {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      signerAddress = accounts[0];
+      signer = await provider.getSigner();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      await refreshWalletUI();
+      log("");
+    } catch (err) {
+      log("Connection failed: " + (err.shortMessage || err.message), "err");
+    }
+  }
+
+  async function addOrSwitchNetwork() {
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: BOTCHAIN_TESTNET.chainId }],
+      });
+    } catch (switchErr) {
+      // 4902 = chain not added to the wallet yet
+      if (switchErr.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [BOTCHAIN_TESTNET],
+          });
+        } catch (addErr) {
+          log("Could not add BOT Chain: " + (addErr.shortMessage || addErr.message), "err");
+          return;
+        }
+      } else {
+        log("Could not switch network: " + (switchErr.shortMessage || switchErr.message), "err");
+        return;
+      }
+    }
+    await refreshWalletUI();
+  }
+
+  function requireSignerContract() {
+    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+  }
+
+  async function createBounty() {
+    const description = $("descriptionInput").value.trim();
+    const amountStr = $("amountInput").value.trim();
+    if (!description || !amountStr || Number(amountStr) <= 0) {
+      log("Enter a description and a positive BOT amount.", "err");
+      return;
+    }
+    try {
+      log("Confirm the transaction in your wallet…", "pending");
+      const value = ethers.parseEther(amountStr);
+      const writable = requireSignerContract();
+      const tx = await writable.createBounty(description, { value });
+      log("Transaction sent, waiting for confirmation…", "pending");
+      const receipt = await tx.wait();
+
+      let newId = null;
+      for (const l of receipt.logs) {
+        try {
+          const parsed = contract.interface.parseLog(l);
+          if (parsed && parsed.name === "BountyCreated") {
+            newId = parsed.args.id;
+            break;
+          }
+        } catch (_) { /* not our event, skip */ }
+      }
+
+      log("Bounty created" + (newId !== null ? " (#" + newId.toString() + ")" : "") + ".", "ok");
+      $("descriptionInput").value = "";
+      $("amountInput").value = "";
+      if (newId !== null) {
+        bountyIdInput.value = newId.toString();
+        await loadBounty(newId);
+      }
+    } catch (err) {
+      log("Create failed: " + (err.shortMessage || err.message), "err");
+    }
+  }
+
+  async function loadBounty(idOverride) {
+    const idStr = idOverride !== undefined ? idOverride.toString() : bountyIdInput.value.trim();
+    if (idStr === "") {
+      log("Enter a bounty ID.", "err");
+      return;
+    }
+    try {
+      const id = BigInt(idStr);
+      const bounty = await contract.bounties(id);
+      const statusName = STATUS_NAMES[Number(bounty.status)];
+
+      if (bounty.requester === ethers.ZeroAddress) {
+        bountyDetail.style.display = "none";
+        actionRow.innerHTML = "";
+        log("No bounty exists with that ID.", "err");
+        return;
+      }
+
+      currentBountyId = id;
+      bountyDetail.style.display = "block";
+      $("detailStatus").textContent = statusName;
+      $("detailStatus").className = "status-badge status-" + statusName;
+      $("detailDescription").textContent = bounty.description;
+      $("detailAmount").textContent = ethers.formatEther(bounty.amount) + " BOT";
+      $("detailRequester").textContent = bounty.requester;
+      $("detailAgent").textContent = bounty.agent === ethers.ZeroAddress ? "(none yet)" : bounty.agent;
+
+      renderActions(statusName, bounty.requester, bounty.agent);
+      log("");
+    } catch (err) {
+      log("Load failed: " + (err.shortMessage || err.message), "err");
+    }
+  }
+
+  function renderActions(statusName, requester, agent) {
+    actionRow.innerHTML = "";
+    if (!signerAddress) return;
+
+    const isRequester = signerAddress.toLowerCase() === requester.toLowerCase();
+
+    if (statusName === "Open" && !isRequester) {
+      addActionButton("Claim Bounty", async () => {
+        const writable = requireSignerContract();
+        return writable.claimBounty(currentBountyId);
+      });
+    }
+    if (statusName === "Open" && isRequester) {
+      addActionButton("Cancel & Refund Myself", async () => {
+        const writable = requireSignerContract();
+        return writable.refund(currentBountyId);
+      }, "secondary");
+    }
+    if (statusName === "Claimed" && isRequester) {
+      addActionButton("Release Payment", async () => {
+        const writable = requireSignerContract();
+        return writable.release(currentBountyId);
+      });
+      addActionButton("Refund Instead", async () => {
+        const writable = requireSignerContract();
+        return writable.refund(currentBountyId);
+      }, "danger");
+    }
+  }
+
+  function addActionButton(label, action, cssClass) {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    if (cssClass) btn.className = cssClass;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        log("Confirm the transaction in your wallet…", "pending");
+        const tx = await action();
+        log("Transaction sent, waiting for confirmation…", "pending");
+        await tx.wait();
+        log("Done.", "ok");
+        await loadBounty(currentBountyId);
+      } catch (err) {
+        log("Transaction failed: " + (err.shortMessage || err.message), "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    actionRow.appendChild(btn);
+  }
+
+  connectBtn.addEventListener("click", connectWallet);
+  addNetworkBtn.addEventListener("click", addOrSwitchNetwork);
+  createBtn.addEventListener("click", createBounty);
+  loadBtn.addEventListener("click", () => loadBounty());
+
+  if (window.ethereum) {
+    window.ethereum.on("accountsChanged", (accounts) => {
+      if (accounts.length === 0) {
+        signerAddress = null;
+        signer = null;
+      } else {
+        signerAddress = accounts[0];
+      }
+      refreshWalletUI();
+    });
+    window.ethereum.on("chainChanged", () => {
+      refreshWalletUI();
+    });
+  }
+
+  refreshWalletUI();
+})();
+</script>
+</body>
+</html>
