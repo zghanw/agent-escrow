@@ -144,6 +144,20 @@
   .feed-item:last-child { border-bottom: none; }
   .feed-time { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
   #eventFeed { max-height: 220px; overflow-y: auto; }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-hover); }
+  .tracker { display: flex; align-items: center; }
+  .tracker-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .tracker-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+  .tracker-step.done .tracker-dot { background: var(--good); }
+  .tracker-step.current .tracker-dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(91, 140, 255, 0.2); }
+  .tracker-label { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .tracker-step.done .tracker-label, .tracker-step.current .tracker-label { color: var(--text); }
+  .tracker-line { flex: 1 1 auto; height: 2px; background: var(--border); margin: 0 4px 18px; }
+  .tracker-line.done { background: var(--good); }
+  .tracker.refunded .tracker-step .tracker-dot { background: var(--bad); box-shadow: none; }
+  .tracker.refunded .tracker-line.done { background: var(--bad); }
+  .tracker-refunded-tag { color: var(--bad); font-size: 0.75rem; font-weight: 600; margin-left: 8px; }
   .bounty-row .bounty-id { color: var(--muted); font-size: 0.8rem; min-width: 34px; }
   .bounty-row .bounty-desc { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #log { margin-top: 6px; font-size: 0.85rem; min-height: 1.2em; }
@@ -209,6 +223,7 @@
     <dl id="bountyDetail">
       <dt>Status</dt>
       <dd><span id="detailStatus" class="status-badge"></span></dd>
+      <dd id="tracker" class="tracker" style="margin-top:8px;"></dd>
       <dt>Description</dt>
       <dd id="detailDescription"></dd>
       <dt>Amount</dt>
@@ -219,6 +234,8 @@
       <dd id="detailAgent" class="mono"></dd>
       <dt>Agent rating</dt>
       <dd id="detailAgentRating"></dd>
+      <dt>Contract</dt>
+      <dd><a id="detailExplorerLink" href="#" target="_blank" rel="noopener">View on BOT Chain Explorer ↗</a></dd>
     </dl>
 
     <div id="actionRow" class="row" style="margin-top:14px;"></div>
@@ -253,6 +270,7 @@
     blockExplorerUrls: ["https://scan.bohr.life"],
   };
   const BOTCHAIN_CHAIN_ID_DEC = 968;
+  const EXPLORER_BASE = "https://scan.bohr.life";
 
   const STATUS_NAMES = ["Open", "Claimed", "Released", "Refunded"];
 
@@ -267,6 +285,8 @@
   const loadBtn = $("loadBtn");
   const bountyIdInput = $("bountyIdInput");
   const bountyDetail = $("bountyDetail");
+  const tracker = $("tracker");
+  const detailExplorerLink = $("detailExplorerLink");
   const actionRow = $("actionRow");
   const ratingRow = $("ratingRow");
   const ratingSelect = $("ratingSelect");
@@ -286,9 +306,18 @@
   let contract = null; // read-only, provider-backed
   let currentBountyId = null;
 
-  function log(message, kind) {
+  function log(message, kind, txHash) {
     logEl.textContent = message;
     logEl.className = kind || "";
+    if (txHash) {
+      logEl.appendChild(document.createTextNode(" "));
+      const link = document.createElement("a");
+      link.href = EXPLORER_BASE + "/tx/" + txHash;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "View transaction ↗";
+      logEl.appendChild(link);
+    }
   }
 
   function shortAddr(addr) {
@@ -361,6 +390,7 @@
         row.appendChild(badge);
         row.addEventListener("click", () => {
           bountyIdInput.value = id.toString();
+          log("");
           loadBounty(id);
         });
         recentBounties.appendChild(row);
@@ -523,7 +553,7 @@
         } catch (_) { /* not our event, skip */ }
       }
 
-      log("Bounty created" + (newId !== null ? " (#" + newId.toString() + ")" : "") + ".", "ok");
+      log("Bounty created" + (newId !== null ? " (#" + newId.toString() + ")" : "") + ".", "ok", receipt.hash);
       $("descriptionInput").value = "";
       $("amountInput").value = "";
       await refreshRecentBounties();
@@ -563,10 +593,14 @@
       $("detailRequester").textContent = bounty.requester;
       $("detailAgent").textContent = bounty.agent === ethers.ZeroAddress ? "(none yet)" : bounty.agent;
       $("detailAgentRating").textContent = await describeAgentRating(bounty.agent);
+      detailExplorerLink.href = EXPLORER_BASE + "/address/" + CONTRACT_ADDRESS;
+      renderTracker(statusName, bounty.agent);
 
       const alreadyRated = await contract.bountyRated(id);
       renderActions(statusName, bounty.requester, bounty.agent, alreadyRated);
-      log("");
+      // Deliberately not clearing the log here — a caller that just
+      // completed a transaction (create/claim/release/refund/rate) wants
+      // its "View transaction" link to survive this refresh, not vanish.
     } catch (err) {
       log("Load failed: " + (err.shortMessage || err.message), "err");
     }
@@ -578,6 +612,47 @@
     if (summary.count === 0n) return "No ratings yet";
     const average = Number(summary.totalScore) / Number(summary.count);
     return average.toFixed(1) + " / 5 (" + summary.count.toString() + " rating" + (summary.count === 1n ? "" : "s") + ")";
+  }
+
+  function renderTracker(statusName, agent) {
+    const steps = ["Created", "Claimed", "Released"];
+    let reachedIndex;
+    let refunded = false;
+    if (statusName === "Open") reachedIndex = 0;
+    else if (statusName === "Claimed") reachedIndex = 1;
+    else if (statusName === "Released") reachedIndex = 2;
+    else {
+      refunded = true;
+      reachedIndex = agent === ethers.ZeroAddress ? 0 : 1;
+    }
+
+    tracker.innerHTML = "";
+    tracker.className = "tracker" + (refunded ? " refunded" : "");
+
+    steps.forEach((label, i) => {
+      if (i > 0) {
+        const line = document.createElement("div");
+        line.className = "tracker-line" + (i <= reachedIndex ? " done" : "");
+        tracker.appendChild(line);
+      }
+      const step = document.createElement("div");
+      step.className = "tracker-step" + (i < reachedIndex ? " done" : i === reachedIndex ? " current" : "");
+      const dot = document.createElement("div");
+      dot.className = "tracker-dot";
+      const text = document.createElement("div");
+      text.className = "tracker-label";
+      text.textContent = label;
+      step.appendChild(dot);
+      step.appendChild(text);
+      tracker.appendChild(step);
+    });
+
+    if (refunded) {
+      const tag = document.createElement("span");
+      tag.className = "tracker-refunded-tag";
+      tag.textContent = "→ Refunded";
+      tracker.appendChild(tag);
+    }
   }
 
   function renderActions(statusName, requester, agent, alreadyRated) {
@@ -621,8 +696,8 @@
       const writable = requireSignerContract();
       const tx = await writable.rateAgent(currentBountyId, Number(ratingSelect.value));
       log("Transaction sent, waiting for confirmation…", "pending");
-      await tx.wait();
-      log("Rating submitted.", "ok");
+      const receipt = await tx.wait();
+      log("Rating submitted.", "ok", receipt.hash);
       await loadBounty(currentBountyId);
       await refreshRecentBounties();
     } catch (err) {
@@ -642,8 +717,8 @@
         log("Confirm the transaction in your wallet…", "pending");
         const tx = await action();
         log("Transaction sent, waiting for confirmation…", "pending");
-        await tx.wait();
-        log("Done.", "ok");
+        const receipt = await tx.wait();
+        log("Done.", "ok", receipt.hash);
         await loadBounty(currentBountyId);
         await refreshRecentBounties();
       } catch (err) {
@@ -659,7 +734,7 @@
   switchAccountBtn.addEventListener("click", switchAccount);
   addNetworkBtn.addEventListener("click", addOrSwitchNetwork);
   createBtn.addEventListener("click", createBounty);
-  loadBtn.addEventListener("click", () => loadBounty());
+  loadBtn.addEventListener("click", () => { log(""); loadBounty(); });
 
   if (window.ethereum) {
     window.ethereum.on("accountsChanged", async (accounts) => {
