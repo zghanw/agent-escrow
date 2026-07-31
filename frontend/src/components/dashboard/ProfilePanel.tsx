@@ -33,7 +33,7 @@ export function ProfilePanel({
       </dl>
       <p className="text-sm mt-3" style={{ color: "var(--muted-foreground)" }}>
         This is your rating as an agent - it accumulates whenever a requester rates you after releasing a bounty you
-        claimed.
+        completed and released.
       </p>
     </Panel>
   );

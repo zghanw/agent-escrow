@@ -7,9 +7,9 @@ import type { StatusName } from "@/lib/contract";
 // `/impeccable document` once this build settles. Direction: the escrow
 // contract as a physical containment vault, not a progress bar - a
 // wireframe shell holds a glowing orb (the locked BOT), a scanning ring
-// appears while a bounty is Claimed, the shell opens and the orb escapes
+// appears while a bounty is Accepted or Submitted, the shell opens and the orb escapes
 // on Released, or the shell seals red and the orb shrinks back on
-// Refunded. Pure function of on-chain status - no timers, no phases,
+// Refunded or Cancelled. Pure function of on-chain status - no timers, no phases,
 // so it can never drift from what the contract actually says. Confirmed
 // with the user as the "no limits" build for stage 4 over a 2D/CSS
 // alternative.
@@ -28,11 +28,14 @@ interface VaultTargets {
 
 function targetsFor(status: StatusName | null): VaultTargets {
   switch (status) {
-    case "Claimed":
+    case "Accepted":
       return { shellScale: 1.12, shellOpacity: 0.9, ringOpacity: 1, orbScale: 0.62, orbY: 0, toRed: 0 };
+    case "Submitted":
+      return { shellScale: 1.22, shellOpacity: 0.72, ringOpacity: 1, orbScale: 0.68, orbY: 0.08, toRed: 0 };
     case "Released":
       return { shellScale: 1.5, shellOpacity: 0.12, ringOpacity: 0, orbScale: 0, orbY: 1.5, toRed: 0 };
     case "Refunded":
+    case "Cancelled":
       return { shellScale: 0.88, shellOpacity: 0.9, ringOpacity: 0, orbScale: 0.32, orbY: -0.08, toRed: 1 };
     case "Open":
     default:
@@ -60,7 +63,13 @@ function VaultScene({ status, busy }: { status: StatusName | null; busy: boolean
 
     const t = state.clock.elapsedTime;
     const idleBob = reduceMotion ? 0 : Math.sin(t * 1.4) * 0.03;
-    const spinSpeed = reduceMotion ? 0 : (status === "Claimed" ? 0.9 : busy ? 0.6 : 0.18);
+    const spinSpeed = reduceMotion
+      ? 0
+      : status === "Accepted" || status === "Submitted"
+        ? 0.9
+        : busy
+          ? 0.6
+          : 0.18;
 
     if (shellRef.current) {
       shellRef.current.rotation.y += delta * spinSpeed;

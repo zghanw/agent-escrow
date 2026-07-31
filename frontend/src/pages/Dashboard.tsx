@@ -16,7 +16,7 @@ import logoMark from "@/assets/logo.png";
 
 export default function Dashboard() {
   const escrow = useEscrow();
-  const canInteract = Boolean(escrow.signerAddress) && escrow.onBotChain;
+  const canInteract = Boolean(escrow.signerAddress) && escrow.onBotChain && escrow.contractConfigured;
   const [tab, setTab] = useState("bounties");
 
   return (
@@ -31,7 +31,7 @@ export default function Dashboard() {
             </h1>
           </Link>
           <p className="font-mono m-0 text-[0.85rem]" style={{ color: "var(--muted-foreground)" }}>
-            Post a BOT bounty, an agent claims it, you release payment on-chain. No middleman.
+            Fund a designated agent, verify submitted work, and settle with symmetric on-chain deadlines.
           </p>
         </header>
 
@@ -42,6 +42,11 @@ export default function Dashboard() {
             onSwitchAccount={escrow.switchAccount}
           />
           <NetworkBanner show={Boolean(escrow.signerAddress) && !escrow.onBotChain} onFix={escrow.addOrSwitchNetwork} />
+          {!escrow.contractConfigured && (
+            <div className="banner bad" role="status">
+              <span>Escrow V2 deployment is not configured. Wallet transactions are disabled.</span>
+            </div>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-5">
@@ -69,9 +74,13 @@ export default function Dashboard() {
               detail={escrow.bountyDetail}
               busy={escrow.busy}
               onLoad={(id) => escrow.loadBounty(id)}
-              onClaim={escrow.claim}
+              onAccept={escrow.accept}
+              onCancelOpen={escrow.cancelOpen}
+              onSubmit={escrow.submit}
+              onRefundExpired={escrow.refundExpired}
               onRelease={escrow.release}
-              onRefund={escrow.refund}
+              onFinalize={escrow.finalize}
+              onSetCancellationApproval={escrow.setCancellationApproval}
               onRate={escrow.rate}
             />
           </TabsContent>

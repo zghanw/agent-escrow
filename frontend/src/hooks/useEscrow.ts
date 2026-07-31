@@ -5,6 +5,7 @@ import {
   BOTCHAIN_TESTNET,
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
+  CONTRACT_CONFIGURED,
   CONTRACT_DEPLOY_BLOCK,
   EXPLORER_BASE,
   STATUS_NAMES,
@@ -13,6 +14,7 @@ import {
   shortAddr,
   type StatusName,
 } from "@/lib/contract";
+import { validateBountyDraft, type BountyDraft } from "@/lib/escrowPolicy";
 
 declare global {
   interface Window {
@@ -43,6 +45,13 @@ export interface BountyDetail {
   amount: bigint;
   requester: string;
   agent: string;
+  submission: string;
+  workDeadline: number;
+  reviewDeadline: number;
+  workDuration: number;
+  reviewPeriod: number;
+  requesterCancellationApproved: boolean;
+  agentCancellationApproved: boolean;
   agentRatingText: string;
   alreadyRated: boolean;
 }
@@ -62,12 +71,16 @@ let feedIdCounter = 0;
 function formatEventLog(name: string, args: readonly any[]): string | null {
   switch (name) {
     case "BountyCreated": {
-      const [id, , amount, description] = args;
-      return `Bounty #${id.toString()} created for ${ethers.formatEther(amount)} BOT - "${description}"`;
+      const [id, , agent, amount, description] = args;
+      return `Bounty #${id.toString()} created for ${ethers.formatEther(amount)} BOT — designated to ${shortAddr(agent)}: "${description}"`;
     }
-    case "BountyClaimed": {
+    case "BountyAccepted": {
       const [id, agent] = args;
-      return `Bounty #${id.toString()} claimed by ${shortAddr(agent)}`;
+      return `Bounty #${id.toString()} accepted by ${shortAddr(agent)}`;
+    }
+    case "WorkSubmitted": {
+      const [id, agent, submission] = args;
+      return `Bounty #${id.toString()} submitted by ${shortAddr(agent)} — ${submission}`;
     }
     case "BountyReleased": {
       const [id, agent, amount] = args;
@@ -76,6 +89,15 @@ function formatEventLog(name: string, args: readonly any[]): string | null {
     case "BountyRefunded": {
       const [id, requester, amount] = args;
       return `Bounty #${id.toString()} refunded - ${ethers.formatEther(amount)} BOT back to ${shortAddr(requester)}`;
+    }
+    case "BountyCancelled": {
+      const [id, requester, amount, mutual] = args;
+      const reason = mutual ? "by mutual approval" : "before acceptance";
+      return `Bounty #${id.toString()} cancelled ${reason} — ${ethers.formatEther(amount)} BOT back to ${shortAddr(requester)}`;
+    }
+    case "CancellationApprovalUpdated": {
+      const [id, party, approved] = args;
+      return `Bounty #${id.toString()}: ${shortAddr(party)} ${approved ? "approved" : "revoked"} cancellation`;
     }
     case "AgentRated": {
       const [bountyId, agent, , score] = args;
@@ -186,12 +208,24 @@ export function useEscrow() {
 
   const setupEventFeed = useCallback(
     (contract: ethers.Contract, myAddress: string) => {
-      contract.on("BountyCreated", (id, requester, amount, description) => {
-        const text = formatEventLog("BountyCreated", [id, requester, amount, description]);
+      contract.on("BountyCreated", (id, requester, agent, amount, description, workDuration, reviewPeriod) => {
+        const text = formatEventLog("BountyCreated", [
+          id,
+          requester,
+          agent,
+          amount,
+          description,
+          workDuration,
+          reviewPeriod,
+        ]);
         if (text) addFeedEntry(text);
       });
-      contract.on("BountyClaimed", (id, agent) => {
-        const text = formatEventLog("BountyClaimed", [id, agent]);
+      contract.on("BountyAccepted", (id, agent, workDeadline) => {
+        const text = formatEventLog("BountyAccepted", [id, agent, workDeadline]);
+        if (text) addFeedEntry(text);
+      });
+      contract.on("WorkSubmitted", (id, agent, submission, reviewDeadline) => {
+        const text = formatEventLog("WorkSubmitted", [id, agent, submission, reviewDeadline]);
         if (text) addFeedEntry(text);
       });
       contract.on("BountyReleased", (id, agent, amount) => {
@@ -200,6 +234,14 @@ export function useEscrow() {
       });
       contract.on("BountyRefunded", (id, requester, amount) => {
         const text = formatEventLog("BountyRefunded", [id, requester, amount]);
+        if (text) addFeedEntry(text);
+      });
+      contract.on("BountyCancelled", (id, requester, amount, mutual) => {
+        const text = formatEventLog("BountyCancelled", [id, requester, amount, mutual]);
+        if (text) addFeedEntry(text);
+      });
+      contract.on("CancellationApprovalUpdated", (id, party, approved) => {
+        const text = formatEventLog("CancellationApprovalUpdated", [id, party, approved]);
         if (text) addFeedEntry(text);
       });
       contract.on("AgentRated", (bountyId, agent, requester, score) => {
@@ -278,7 +320,7 @@ export function useEscrow() {
     }
   }, []);
 
-  const useAccounts = useCallback(
+  const activateAccounts = useCallback(
     async (accounts: string[]) => {
       // "any" tells ethers not to treat a runtime chain change as a fatal
       // NETWORK_ERROR (its default assumes the network never changes).
@@ -289,6 +331,18 @@ export function useEscrow() {
       setSignerAddress(accounts[0]);
 
       contractRef.current?.removeAllListeners();
+      if (!CONTRACT_CONFIGURED) {
+        contractRef.current = null;
+        setRecentBounties([]);
+        setBountyDetail(null);
+        await refreshNetwork();
+        writeLog(
+          "Escrow V2 is not deployed yet. Configure VITE_CONTRACT_ADDRESS and VITE_CONTRACT_DEPLOY_BLOCK after deployment.",
+          "err"
+        );
+        return;
+      }
+
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       contractRef.current = contract;
 
@@ -311,12 +365,12 @@ export function useEscrow() {
     }
     try {
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      await useAccounts(accounts);
+      await activateAccounts(accounts);
     } catch (err: any) {
       try {
         const accounts = await window.ethereum.request({ method: "eth_accounts" });
         if (accounts.length > 0) {
-          await useAccounts(accounts);
+          await activateAccounts(accounts);
           return;
         }
       } catch {
@@ -324,7 +378,7 @@ export function useEscrow() {
       }
       writeLog(describeConnectError(err), "err");
     }
-  }, [useAccounts, writeLog]);
+  }, [activateAccounts, writeLog]);
 
   const switchAccount = useCallback(async () => {
     if (!window.ethereum) return;
@@ -334,11 +388,11 @@ export function useEscrow() {
         params: [{ eth_accounts: {} }],
       });
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
-      if (accounts.length > 0) await useAccounts(accounts);
+      if (accounts.length > 0) await activateAccounts(accounts);
     } catch (err: any) {
       writeLog(describeConnectError(err), "err");
     }
-  }, [useAccounts, writeLog]);
+  }, [activateAccounts, writeLog]);
 
   const addOrSwitchNetwork = useCallback(async () => {
     try {
@@ -401,6 +455,13 @@ export function useEscrow() {
           amount: bounty.amount,
           requester: bounty.requester,
           agent: bounty.agent,
+          submission: bounty.submission,
+          workDeadline: Number(bounty.workDeadline),
+          reviewDeadline: Number(bounty.reviewDeadline),
+          workDuration: Number(bounty.workDuration),
+          reviewPeriod: Number(bounty.reviewPeriod),
+          requesterCancellationApproved: bounty.requesterCancellationApproved,
+          agentCancellationApproved: bounty.agentCancellationApproved,
           agentRatingText,
           alreadyRated,
         });
@@ -435,17 +496,31 @@ export function useEscrow() {
   );
 
   const createBounty = useCallback(
-    async (description: string, amountStr: string) => {
-      if (!description.trim() || !amountStr.trim() || Number(amountStr) <= 0) {
-        writeLog("Enter a description and a positive BOT amount.", "err");
+    async (draft: BountyDraft) => {
+      if (!signerAddress) {
+        writeLog("Connect the requester wallet first.", "err");
         return false;
       }
+      const validationError = validateBountyDraft(draft, signerAddress);
+      if (validationError) {
+        writeLog(validationError, "err");
+        return false;
+      }
+
       setBusy(true);
       try {
         writeLog("Confirm the transaction in your wallet…", "pending");
-        const value = ethers.parseEther(amountStr);
+        const value = ethers.parseEther(draft.amount);
+        const workDuration = Math.round(Number(draft.workHours) * 60 * 60);
+        const reviewPeriod = Math.round(Number(draft.reviewHours) * 60 * 60);
         const writable = requireSignerContract();
-        const tx = await writable.createBounty(description.trim(), { value });
+        const tx = await writable.createBounty(
+          draft.agent,
+          draft.description.trim(),
+          workDuration,
+          reviewPeriod,
+          { value }
+        );
         writeLog("Transaction sent, waiting for confirmation…", "pending");
         const receipt = await tx.wait();
 
@@ -473,19 +548,48 @@ export function useEscrow() {
         setBusy(false);
       }
     },
-    [loadBounty, refreshRecentBounties, requireSignerContract, writeLog]
+    [loadBounty, refreshRecentBounties, requireSignerContract, signerAddress, writeLog]
   );
 
-  const claim = useCallback(
-    (id: bigint) => runTx(() => requireSignerContract().claimBounty(id)),
+  const accept = useCallback(
+    (id: bigint) => runTx(() => requireSignerContract().acceptBounty(id), "Bounty accepted."),
+    [requireSignerContract, runTx]
+  );
+  const cancelOpen = useCallback(
+    (id: bigint) => runTx(() => requireSignerContract().cancelOpenBounty(id), "Open bounty cancelled."),
+    [requireSignerContract, runTx]
+  );
+  const submit = useCallback(
+    (id: bigint, submission: string) => {
+      if (!submission.trim()) {
+        writeLog("Enter a deliverable URL or content hash.", "err");
+        return;
+      }
+      void runTx(
+        () => requireSignerContract().submitWork(id, submission.trim()),
+        "Work submitted for review."
+      );
+    },
+    [requireSignerContract, runTx, writeLog]
+  );
+  const refundExpired = useCallback(
+    (id: bigint) => runTx(() => requireSignerContract().refundExpiredBounty(id), "Expired bounty refunded."),
     [requireSignerContract, runTx]
   );
   const release = useCallback(
-    (id: bigint) => runTx(() => requireSignerContract().release(id)),
+    (id: bigint) => runTx(() => requireSignerContract().release(id), "Payment released."),
     [requireSignerContract, runTx]
   );
-  const refund = useCallback(
-    (id: bigint) => runTx(() => requireSignerContract().refund(id)),
+  const finalize = useCallback(
+    (id: bigint) => runTx(() => requireSignerContract().finalize(id), "Review period ended; payment finalized."),
+    [requireSignerContract, runTx]
+  );
+  const setCancellationApproval = useCallback(
+    (id: bigint, approved: boolean) =>
+      runTx(
+        () => requireSignerContract().setCancellationApproval(id, approved),
+        approved ? "Cancellation approved." : "Cancellation approval revoked."
+      ),
     [requireSignerContract, runTx]
   );
   const rate = useCallback(
@@ -504,7 +608,7 @@ export function useEscrow() {
         setMyRatingText(null);
         return;
       }
-      await useAccounts(accounts);
+      await activateAccounts(accounts);
       if (bountyDetail) await loadBounty(bountyDetail.id);
     };
     const onChainChanged = () => {
@@ -531,7 +635,7 @@ export function useEscrow() {
       if (!window.ethereum) return;
       try {
         const accounts = await window.ethereum.request({ method: "eth_accounts" });
-        if (accounts.length > 0) await useAccounts(accounts);
+        if (accounts.length > 0) await activateAccounts(accounts);
       } catch {
         /* ignore - falls back to the disconnected state */
       }
@@ -551,14 +655,19 @@ export function useEscrow() {
     busy,
     explorerBase: EXPLORER_BASE,
     contractAddress: CONTRACT_ADDRESS,
+    contractConfigured: CONTRACT_CONFIGURED,
     connectWallet,
     switchAccount,
     addOrSwitchNetwork,
     createBounty,
     loadBounty,
-    claim,
+    accept,
+    cancelOpen,
+    submit,
+    refundExpired,
     release,
-    refund,
+    finalize,
+    setCancellationApproval,
     rate,
     clearLog: () => writeLog(""),
   };

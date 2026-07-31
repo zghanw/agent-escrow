@@ -296,9 +296,11 @@
   border: 1px solid currentColor;
 }
 .dashboard-theme .status-Open { background: rgba(245, 158, 11, 0.12); color: var(--warn); }
-.dashboard-theme .status-Claimed { background: rgba(96, 165, 250, 0.12); color: var(--status-info); }
+.dashboard-theme .status-Accepted { background: rgba(96, 165, 250, 0.12); color: var(--status-info); }
+.dashboard-theme .status-Submitted { background: rgba(168, 85, 247, 0.12); color: #c084fc; }
 .dashboard-theme .status-Released { background: rgba(34, 197, 94, 0.12); color: var(--good); }
 .dashboard-theme .status-Refunded { background: rgba(163, 163, 163, 0.12); color: var(--muted-foreground); }
+.dashboard-theme .status-Cancelled { background: rgba(239, 68, 68, 0.12); color: var(--bad); }
 
 .dashboard-theme .banner {
   position: relative;
@@ -521,7 +523,7 @@
   border-right: 1px solid var(--landing-primary, var(--primary));
 }
 
-/* Static mechanism preview (Created -> Claimed -> Released). */
+/* Static mechanism preview (Funded -> Accepted -> Submitted -> Released). */
 .landing-theme .flow-dot {
   width: 8px;
   height: 8px;

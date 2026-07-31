@@ -1,4 +1,4 @@
-const STEPS = ["Created", "Claimed", "Released"];
+const STEPS = ["Funded", "Accepted", "Submitted", "Released"];
 
 // Static mechanism preview - not bound to any real bounty, just teaches the
 // state machine before the visitor is asked to trust it with funds.

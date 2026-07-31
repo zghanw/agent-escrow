@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test:policy": "node --test test/escrowPolicy.test.mjs",
+    "test:policy": "node --test test/contractAbi.test.mjs test/escrowPolicy.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
