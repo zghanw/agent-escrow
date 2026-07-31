@@ -188,90 +188,97 @@ describe("AgentEscrow", function () {
     expect((await escrow.bounties(0)).status).to.equal(3n);
   });
 
-  it("moves funds correctly through create -> claim -> release", async function () {
+  it("cancels an accepted bounty only after both parties approve", async function () {
     const { ethers, escrow, requester, agent } = await deployFixture();
-    const amount = ethers.parseEther("1");
+    const [, , other] = await ethers.getSigners();
+    const amount = ethers.parseEther("0.8");
 
-    await (await escrow.connect(requester).createBounty("write a poem", { value: amount })).wait();
-    await (await escrow.connect(agent).claimBounty(0)).wait();
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "review a protocol", 86400, 3600, { value: amount })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
 
-    const agentBalanceBefore = await ethers.provider.getBalance(agent.address);
+    await expect(escrow.connect(other).setCancellationApproval(0, true)).to.be.revertedWith(
+      "Only bounty parties can approve cancellation"
+    );
+
+    await (await escrow.connect(requester).setCancellationApproval(0, true)).wait();
+    expect((await escrow.bounties(0)).requesterCancellationApproved).to.equal(true);
+    expect((await escrow.bounties(0)).status).to.equal(1n);
+    expect(await ethers.provider.getBalance(await escrow.getAddress())).to.equal(amount);
+
+    await (await escrow.connect(requester).setCancellationApproval(0, false)).wait();
+    expect((await escrow.bounties(0)).requesterCancellationApproved).to.equal(false);
+
+    await (await escrow.connect(agent).setCancellationApproval(0, true)).wait();
     const requesterBalanceBefore = await ethers.provider.getBalance(requester.address);
-
-    const releaseReceipt = await (await escrow.connect(requester).release(0)).wait();
-
-    const agentBalanceAfter = await ethers.provider.getBalance(agent.address);
+    const receipt = await (await escrow.connect(requester).setCancellationApproval(0, true)).wait();
     const requesterBalanceAfter = await ethers.provider.getBalance(requester.address);
 
-    expect(agentBalanceAfter - agentBalanceBefore).to.equal(amount);
-    expect(requesterBalanceBefore - requesterBalanceAfter).to.equal(gasCost(releaseReceipt));
-
-    const bounty = await escrow.bounties(0);
-    expect(bounty.status).to.equal(2n); // Released
+    const cancelled = await escrow.bounties(0);
+    expect(cancelled.status).to.equal(5n);
+    expect(cancelled.agentCancellationApproved).to.equal(true);
+    expect(requesterBalanceAfter - requesterBalanceBefore).to.equal(amount - gasCost(receipt));
   });
 
-  it("refunds the full amount from Claimed status", async function () {
+  it("allows both parties to mutually cancel after work is submitted", async function () {
     const { ethers, escrow, requester, agent } = await deployFixture();
-    const amount = ethers.parseEther("0.5");
+    const amount = ethers.parseEther("0.3");
 
-    await (await escrow.connect(requester).createBounty("draft a report", { value: amount })).wait();
-    await (await escrow.connect(agent).claimBounty(0)).wait();
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "prepare slides", 86400, 3600, { value: amount })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
+    await (await escrow.connect(agent).submitWork(0, "ipfs://slides")).wait();
+    await (await escrow.connect(requester).setCancellationApproval(0, true)).wait();
+    await (await escrow.connect(agent).setCancellationApproval(0, true)).wait();
 
-    const requesterBalanceBefore = await ethers.provider.getBalance(requester.address);
-    const refundReceipt = await (await escrow.connect(requester).refund(0)).wait();
-    const requesterBalanceAfter = await ethers.provider.getBalance(requester.address);
-
-    expect(requesterBalanceAfter - requesterBalanceBefore).to.equal(amount - gasCost(refundReceipt));
-
-    const bounty = await escrow.bounties(0);
-    expect(bounty.status).to.equal(3n); // Refunded
+    expect((await escrow.bounties(0)).status).to.equal(5n);
+    expect(await ethers.provider.getBalance(await escrow.getAddress())).to.equal(0n);
   });
 
-  it("reverts a reentrant refund attempt with no state change and no funds lost", async function () {
-    const { ethers, escrow, requester } = await deployFixture();
+  it("reverts a reentrant open cancellation with no state change and no funds lost", async function () {
+    const { ethers, escrow, requester, agent } = await deployFixture();
     const amount = ethers.parseEther("0.25");
 
     const malicious = await ethers.deployContract("MaliciousRequester", [await escrow.getAddress()]);
 
     await expect(
-      malicious.connect(requester).createAndRefund("desc", { value: amount })
+      malicious.connect(requester).createAndCancel(agent.address, "desc", 86400, 3600, { value: amount })
     ).to.be.revert(ethers);
 
     expect(await escrow.bountyCount()).to.equal(0n);
     expect(await ethers.provider.getBalance(await escrow.getAddress())).to.equal(0n);
   });
 
-  it("rejects the requester claiming their own bounty", async function () {
-    const { ethers, escrow, requester } = await deployFixture();
-    await (await escrow.connect(requester).createBounty("desc", { value: ethers.parseEther("0.1") })).wait();
-
-    await expect(escrow.connect(requester).claimBounty(0)).to.be.revert(ethers);
-  });
-
-  it("rejects claiming a bounty that isn't Open", async function () {
-    const { ethers, escrow, requester, agent } = await deployFixture();
-    await (await escrow.connect(requester).createBounty("desc", { value: ethers.parseEther("0.1") })).wait();
-    await (await escrow.connect(agent).claimBounty(0)).wait();
-
-    const [, , other] = await ethers.getSigners();
-    await expect(escrow.connect(other).claimBounty(0)).to.be.revert(ethers);
-  });
-
   async function releasedBountyFixture() {
     const fixture = await deployFixture();
     const { ethers, escrow, requester, agent } = fixture;
-    await (await escrow.connect(requester).createBounty("desc", { value: ethers.parseEther("0.1") })).wait();
-    await (await escrow.connect(agent).claimBounty(0)).wait();
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "desc", 86400, 3600, { value: ethers.parseEther("0.1") })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
+    await (await escrow.connect(agent).submitWork(0, "ipfs://completed-work")).wait();
     await (await escrow.connect(requester).release(0)).wait();
     return fixture;
   }
 
   it("rejects rating a bounty that hasn't been released yet", async function () {
     const { ethers, escrow, requester, agent } = await deployFixture();
-    await (await escrow.connect(requester).createBounty("desc", { value: ethers.parseEther("0.1") })).wait();
-    await (await escrow.connect(agent).claimBounty(0)).wait();
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "desc", 86400, 3600, { value: ethers.parseEther("0.1") })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
 
-    await expect(escrow.connect(requester).rateAgent(0, 5)).to.be.revert(ethers);
+    await expect(escrow.connect(requester).rateAgent(0, 5)).to.be.revertedWith("Bounty not released");
   });
 
   it("records a rating and updates the agent's summary after release", async function () {

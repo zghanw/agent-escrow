@@ -14,8 +14,13 @@ contract MaliciousRequester {
         escrow = AgentEscrow(escrowAddress);
     }
 
-    function createAndRefund(string calldata description) external payable {
-        bountyId = escrow.createBounty{value: msg.value}(address(1), description, 1 days, 1 days);
+    function createAndCancel(
+        address agent,
+        string calldata description,
+        uint256 workDuration,
+        uint256 reviewPeriod
+    ) external payable {
+        bountyId = escrow.createBounty{value: msg.value}(agent, description, workDuration, reviewPeriod);
         escrow.cancelOpenBounty(bountyId);
     }
 

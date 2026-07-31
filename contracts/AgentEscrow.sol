@@ -56,6 +56,7 @@ contract AgentEscrow is ReentrancyGuard {
     event BountyReleased(uint256 indexed id, address indexed agent, uint256 amount);
     event BountyRefunded(uint256 indexed id, address indexed requester, uint256 amount);
     event BountyCancelled(uint256 indexed id, address indexed requester, uint256 amount, bool mutual);
+    event CancellationApprovalUpdated(uint256 indexed id, address indexed party, bool approved);
     event AgentRated(uint256 indexed bountyId, address indexed agent, address indexed requester, uint8 score);
 
     modifier bountyExists(uint256 id) {
@@ -159,6 +160,34 @@ contract AgentEscrow is ReentrancyGuard {
         require(block.timestamp >= bounty.reviewDeadline, "Review deadline not reached");
 
         _release(id, bounty);
+    }
+
+    function setCancellationApproval(uint256 id, bool approved) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
+        require(
+            bounty.status == Status.Accepted || bounty.status == Status.Submitted,
+            "Bounty not active"
+        );
+
+        if (msg.sender == bounty.requester) {
+            bounty.requesterCancellationApproved = approved;
+        } else if (msg.sender == bounty.agent) {
+            bounty.agentCancellationApproved = approved;
+        } else {
+            revert("Only bounty parties can approve cancellation");
+        }
+
+        emit CancellationApprovalUpdated(id, msg.sender, approved);
+
+        if (bounty.requesterCancellationApproved && bounty.agentCancellationApproved) {
+            uint256 amount = bounty.amount;
+            bounty.status = Status.Cancelled;
+
+            (bool success, ) = bounty.requester.call{value: amount}("");
+            require(success, "Cancellation transfer failed");
+
+            emit BountyCancelled(id, bounty.requester, amount, true);
+        }
     }
 
     function _release(uint256 id, Bounty storage bounty) private {
