@@ -54,8 +54,12 @@ export function BountyDetailPanel({
 
   return (
     <Panel heading="View a bounty">
+      <label className="field-label" htmlFor="bountyIdInput">
+        Bounty ID
+      </label>
       <div className="flex gap-2.5">
         <Input
+          id="bountyIdInput"
           className="max-w-[140px]"
           type="number"
           min="0"
@@ -129,22 +133,27 @@ export function BountyDetailPanel({
       )}
 
       {detail && detail.status === "Released" && isRequester && !detail.alreadyRated && (
-        <div className="flex gap-2 mt-2.5 items-center">
-          <Select value={rating} onValueChange={setRating}>
-            <SelectTrigger className="w-auto max-w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {RATING_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <LiquidButton variant="outline" disabled={busy} onClick={() => onRate(detail.id, Number(rating))}>
-            Rate Agent
-          </LiquidButton>
+        <div>
+          <label className="field-label" htmlFor="agentRating">
+            Agent rating
+          </label>
+          <div className="flex gap-2 mt-2.5 items-center">
+            <Select value={rating} onValueChange={setRating}>
+              <SelectTrigger id="agentRating" className="w-auto max-w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RATING_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <LiquidButton variant="outline" disabled={busy} onClick={() => onRate(detail.id, Number(rating))}>
+              Rate Agent
+            </LiquidButton>
+          </div>
         </div>
       )}
     </Panel>

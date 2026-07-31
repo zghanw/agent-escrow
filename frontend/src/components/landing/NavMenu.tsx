@@ -25,7 +25,7 @@ export const NavMenu = ({ className }: NavMenuProps) => {
         <button
           ref={(el) => setContainer(el?.closest(".landing-theme") ?? null)}
           className={cn(
-            "group relative size-9 grid place-items-center text-white/70 hover:text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--landing-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+            "group relative size-11 grid place-items-center text-white/70 hover:text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--landing-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
             className
           )}
           aria-label="Open menu"
