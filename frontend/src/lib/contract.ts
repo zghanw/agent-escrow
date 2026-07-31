@@ -26,3 +26,16 @@ export function describeConnectError(err: any): string {
     return "MetaMask already has a connection request open - check your browser toolbar for the MetaMask icon.";
   return "MetaMask didn't respond as expected. Click the MetaMask icon in your toolbar and connect this site directly, then reload.";
 }
+
+// Pulls the most specific message out of a failed write-tx error, since
+// ethers' own err.message is often just the opaque "could not coalesce
+// error" wrapper around whatever the RPC actually said. The real detail
+// lives one level down - under `.info.error.message` for errors ethers
+// recognizes (insufficient funds, user-rejected, etc), or under the bare
+// `.error.message` for anything it doesn't (the "could not coalesce"
+// fallback case) - so check those before ethers' own summary fields.
+export function describeTxError(err: any): string {
+  if (err && err.code === 4001) return "Transaction rejected in MetaMask.";
+  const underlying = err?.info?.error?.message || err?.error?.message;
+  return underlying || err?.shortMessage || err?.reason || err?.message || "Unknown error.";
+}

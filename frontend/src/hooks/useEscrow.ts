@@ -8,6 +8,7 @@ import {
   EXPLORER_BASE,
   STATUS_NAMES,
   describeConnectError,
+  describeTxError,
   type StatusName,
 } from "@/lib/contract";
 
@@ -131,20 +132,35 @@ export function useEscrow() {
   }, []);
 
   const refreshNetwork = useCallback(async () => {
-    const provider = providerRef.current;
-    if (!provider) {
+    if (!providerRef.current || !window.ethereum) {
       setOnBotChain(false);
       return false;
     }
-    const network = await provider.getNetwork();
-    const isOnBotChain = Number(network.chainId) === BOTCHAIN_CHAIN_ID_DEC;
-    setOnBotChain(isOnBotChain);
-    return isOnBotChain;
+    try {
+      // Ask the wallet directly rather than ethers' provider.getNetwork():
+      // under the "any" network mode (needed so a runtime chain switch
+      // doesn't throw), getNetwork() reports the *previous* chain on the
+      // very call where it first notices a change, only catching up on the
+      // call after - which would leave onBotChain wrong for a beat. A
+      // direct eth_chainId request has no such lag.
+      const chainIdHex: string = await window.ethereum.request({ method: "eth_chainId" });
+      const isOnBotChain = parseInt(chainIdHex, 16) === BOTCHAIN_CHAIN_ID_DEC;
+      setOnBotChain(isOnBotChain);
+      return isOnBotChain;
+    } catch {
+      // A runtime chain switch can still surface as a rejected request here -
+      // treat that the same as "not on BOT Chain" instead of leaving
+      // onBotChain stuck at its last value.
+      setOnBotChain(false);
+      return false;
+    }
   }, []);
 
   const useAccounts = useCallback(
     async (accounts: string[]) => {
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      // "any" tells ethers not to treat a runtime chain change as a fatal
+      // NETWORK_ERROR (its default assumes the network never changes).
+      const provider = new ethers.BrowserProvider(window.ethereum, "any");
       const signer = await provider.getSigner();
       providerRef.current = provider;
       signerRef.current = signer;
@@ -289,7 +305,7 @@ export function useEscrow() {
         if (bountyDetail) await loadBounty(bountyDetail.id);
         await refreshRecentBounties();
       } catch (err: any) {
-        writeLog(`Transaction failed: ${err.shortMessage || err.message}`, "err");
+        writeLog(`Transaction failed: ${describeTxError(err)}`, "err");
       } finally {
         setBusy(false);
       }
@@ -301,7 +317,7 @@ export function useEscrow() {
     async (description: string, amountStr: string) => {
       if (!description.trim() || !amountStr.trim() || Number(amountStr) <= 0) {
         writeLog("Enter a description and a positive BOT amount.", "err");
-        return;
+        return false;
       }
       setBusy(true);
       try {
@@ -328,8 +344,10 @@ export function useEscrow() {
         writeLog(`Bounty created${newId !== null ? ` (#${newId.toString()})` : ""}.`, "ok", receipt.hash);
         await refreshRecentBounties();
         if (newId !== null) await loadBounty(newId);
+        return true;
       } catch (err: any) {
-        writeLog(`Create failed: ${err.shortMessage || err.message}`, "err");
+        writeLog(`Create failed: ${describeTxError(err)}`, "err");
+        return false;
       } finally {
         setBusy(false);
       }
@@ -368,9 +386,11 @@ export function useEscrow() {
       if (bountyDetail) await loadBounty(bountyDetail.id);
     };
     const onChainChanged = () => {
-      refreshNetwork().then((isOnBotChain) => {
-        if (isOnBotChain) refreshRecentBounties();
-      });
+      refreshNetwork()
+        .then((isOnBotChain) => {
+          if (isOnBotChain) refreshRecentBounties();
+        })
+        .catch(() => setOnBotChain(false));
     };
     window.ethereum.on("accountsChanged", onAccountsChanged);
     window.ethereum.on("chainChanged", onChainChanged);

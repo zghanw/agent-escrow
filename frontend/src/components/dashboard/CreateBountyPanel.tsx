@@ -9,15 +9,17 @@ export function CreateBountyPanel({
   onCreate,
 }: {
   disabled: boolean;
-  onCreate: (description: string, amount: string) => Promise<void>;
+  onCreate: (description: string, amount: string) => Promise<boolean>;
 }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
 
   const handleCreate = async () => {
-    await onCreate(description, amount);
-    setDescription("");
-    setAmount("");
+    const success = await onCreate(description, amount);
+    if (success) {
+      setDescription("");
+      setAmount("");
+    }
   };
 
   return (
