@@ -1,4 +1,5 @@
 import hre from "hardhat";
+import { formatFrontendConfig } from "./deploymentOutput.js";
 
 const EXPLORERS = {
   968: "https://scan.bohr.life",
@@ -23,9 +24,15 @@ async function main() {
   await escrow.waitForDeployment();
 
   const address = await escrow.getAddress();
+  const deploymentTransaction = escrow.deploymentTransaction();
+  if (!deploymentTransaction) throw new Error("Deployment transaction is unavailable.");
+  const receipt = await deploymentTransaction.wait();
+  if (!receipt) throw new Error("Deployment receipt is unavailable.");
   const explorer = EXPLORERS[Number(networkConfig.chainId)];
   console.log(`AgentEscrow deployed to: ${address}`);
   console.log(explorer ? `Explorer: ${explorer}/address/${address}` : "Explorer: (unknown chain)");
+  console.log("\nFrontend V2 configuration:");
+  console.log(formatFrontendConfig(address, receipt.blockNumber));
 }
 
 main().catch((error) => {

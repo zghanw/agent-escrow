@@ -1,15 +1,17 @@
 # Agent Escrow
 
 <!-- TODO (submission requirement): record a short screen capture of the
-     live create → claim → release → rate walkthrough below, save it as
+     live create → accept → submit → release → rate walkthrough below, save it as
      demo.gif in this repo, and replace this comment with:
      ![Agent Escrow demo](demo.gif)
      This GIF also doubles as the asset for the required X post. -->
 
-Post a BOT bounty for a task, an agent wallet claims it and delivers, you release payment on-chain - no middleman, no "trust me" IOU.
+Fund a task for a designated agent, record delivery on-chain, and settle through symmetric work and review deadlines — no middleman and no unilateral post-acceptance refund.
 
 **Live app:** https://zghanw.github.io/agent-escrow/
-**Contract (BOT Chain testnet, verified):** [`0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1`](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code)
+**Legacy V1 contract (BOT Chain testnet, verified):** [`0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1`](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code)
+
+V2 is implemented and tested in this repository but is not presented as live until a new immutable contract is deployed and the frontend receives its address and deployment block.
 
 ## The problem
 
@@ -18,10 +20,12 @@ An AI agent (or the human running it) doing paid work for a stranger on BOT Chai
 ## How to use it
 
 1. Open the [live app](https://zghanw.github.io/agent-escrow/) and click **Connect Wallet** (MetaMask). If BOT Chain testnet isn't configured yet, click **Add / Switch to BOT Chain** - the app configures it for you.
-2. **Create a bounty**: describe the task and set a BOT amount, then confirm the transaction. Your funds move into the contract, not to anyone yet.
-3. **Claim it** from a *different* wallet (the agent) - the requester can't claim their own bounty.
-4. Back on the requester's wallet, **Release Payment** to pay the agent, or **Refund** at any point before release to cancel and get your funds back.
-5. Once released, the requester can **rate the agent** 1-5. Ratings accumulate per agent address and are visible to anyone looking up that agent.
+2. **Create a bounty** with the task, BOT amount, designated agent address, work window, and requester review window. Funds move into the contract immediately.
+3. The designated wallet **accepts** the bounty. The work deadline starts at acceptance; no unrelated wallet can take the job.
+4. The agent **submits work** by recording a deliverable URL or content hash before the work deadline.
+5. The requester **releases payment** during review. If the requester does nothing, anyone can call `finalize` at the review deadline and the contract pays the agent.
+6. If the agent misses the work deadline, the requester can recover the escrow. While work is active, both parties can approve a mutual cancellation; one approval alone moves no funds.
+7. Once released, the requester can **rate the agent** 1–5. Ratings accumulate per agent address and are visible to anyone looking up that agent.
 
 Every action shows up instantly in the **Live activity** feed, and every transaction links straight to the block explorer.
 
@@ -41,23 +45,33 @@ The Solidity side is a single contract, [`AgentEscrow.sol`](contracts/AgentEscro
 
 | Function | Who can call it | What it does |
 |---|---|---|
-| `createBounty(description)` (payable) | anyone | Opens a bounty, locking the sent BOT in the contract. |
-| `claimBounty(id)` | anyone except the requester | Assigns the caller as the agent; bounty moves to `Claimed`. |
-| `release(id)` | the requester, once `Claimed` | Pays the agent the full bounty amount; moves to `Released`. |
-| `refund(id)` | the requester, while `Open` or `Claimed` | Returns the full amount to the requester; moves to `Refunded`. |
+| `createBounty(agent, description, workDuration, reviewPeriod)` (payable) | anyone | Opens and funds a bounty for one designated agent. |
+| `acceptBounty(id)` | designated agent | Accepts the work and starts its deadline. |
+| `cancelOpenBounty(id)` | requester, while `Open` | Cancels before acceptance and returns the escrow. |
+| `submitWork(id, submission)` | designated agent, before deadline | Stores a deliverable URL/hash and starts requester review. |
+| `refundExpiredBounty(id)` | requester, after missed work deadline | Returns escrow only when accepted work was not submitted on time. |
+| `release(id)` | requester, once `Submitted` | Pays the agent immediately. |
+| `finalize(id)` | anyone, after review deadline | Pays the agent when requester review expires without settlement. |
+| `setCancellationApproval(id, approved)` | requester or agent | Approves or revokes mutual cancellation; refund occurs only after both approvals. |
 | `rateAgent(id, score)` | the requester, once `Released`, once per bounty | Records a 1-5 rating against the agent's address. |
 | `getAgentRatingSummary(agent)` | anyone (view) | Returns `(totalScore, count)` for computing an agent's average. |
 
-State machine: `Open → Claimed → Released` (happy path) or `Open|Claimed → Refunded` (cancel/bail-out). All four transitions and the rating action emit events (`BountyCreated`, `BountyClaimed`, `BountyReleased`, `BountyRefunded`, `AgentRated`), which is what the live activity feed listens to.
+Happy path: `Open → Accepted → Submitted → Released`. An open bounty may become `Cancelled`; missed accepted work becomes `Refunded`; mutual approval can produce `Cancelled` from `Accepted` or `Submitted`.
 
-Fund-moving functions (`release`, `refund`) follow checks-effects-interactions (status is updated before any value transfer) and are additionally guarded with OpenZeppelin's `nonReentrant` - both proven by the test suite, including a dedicated reentrancy-attack test.
+Every fund-moving function follows checks-effects-interactions and uses OpenZeppelin's `nonReentrant`. The suite covers direct release, timeout finalization, deadline refund, open and mutual cancellation, authorization, exact deadline boundaries, reputation, and a malicious reentrant receiver.
+
+Submission evidence proves that a value was recorded before the deadline; it cannot prove subjective quality. High-value subjective work still benefits from an optional resolver in a future version.
 
 ## Local development
 
 ```bash
 npm install
-npx hardhat test              # 10 tests: money-path, refund, reentrancy-guard, ratings, access control
+npx hardhat test              # contract lifecycle, deadline, cancellation, security, and deployment-output tests
 npx hardhat compile
+npm install --prefix frontend
+npm run test:policy --prefix frontend
+npm run lint --prefix frontend
+npm run build --prefix frontend
 ```
 
 To deploy your own instance to BOT Chain testnet:
@@ -67,6 +81,8 @@ cp .env.example .env          # fill in a funded testnet wallet's PRIVATE_KEY
 npx hardhat run scripts/deploy.js --network botchainTestnet
 npx hardhat verify --network botchainTestnet <deployed-address>
 ```
+
+The deploy script prints `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK`. Copy both into `frontend/.env.local` for local builds, or create GitHub repository variables with the same names before deploying Pages. The V2 frontend fails closed when either value is missing, preventing the V2 ABI from being used against the legacy V1 address.
 
 BOT Chain testnet: chain ID `968`, RPC `https://rpc.bohr.life`, explorer `https://scan.bohr.life`, faucet `https://faucet.botchain.ai/basic`.
 
