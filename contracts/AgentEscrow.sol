@@ -6,9 +6,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract AgentEscrow is ReentrancyGuard {
     enum Status {
         Open,
-        Claimed,
+        Accepted,
+        Submitted,
         Released,
-        Refunded
+        Refunded,
+        Cancelled
     }
 
     struct Bounty {
@@ -16,8 +18,15 @@ contract AgentEscrow is ReentrancyGuard {
         address agent;
         uint256 amount;
         string description;
+        string submission;
         Status status;
         uint256 createdAt;
+        uint256 workDeadline;
+        uint256 reviewDeadline;
+        uint256 workDuration;
+        uint256 reviewPeriod;
+        bool requesterCancellationApproved;
+        bool agentCancellationApproved;
     }
 
     struct Rating {
@@ -27,49 +36,90 @@ contract AgentEscrow is ReentrancyGuard {
         uint256 ratedAt;
     }
 
-    mapping(uint256 => Bounty) public bounties;
+    mapping(uint256 => Bounty) private _bounties;
     uint256 public bountyCount;
 
     mapping(address => Rating[]) public agentRatings;
     mapping(uint256 => bool) public bountyRated;
 
-    event BountyCreated(uint256 indexed id, address indexed requester, uint256 amount, string description);
-    event BountyClaimed(uint256 indexed id, address indexed agent);
+    event BountyCreated(
+        uint256 indexed id,
+        address indexed requester,
+        address indexed agent,
+        uint256 amount,
+        string description,
+        uint256 workDuration,
+        uint256 reviewPeriod
+    );
+    event BountyAccepted(uint256 indexed id, address indexed agent, uint256 workDeadline);
     event BountyReleased(uint256 indexed id, address indexed agent, uint256 amount);
     event BountyRefunded(uint256 indexed id, address indexed requester, uint256 amount);
     event AgentRated(uint256 indexed bountyId, address indexed agent, address indexed requester, uint8 score);
 
-    function createBounty(string calldata description) external payable returns (uint256 id) {
-        require(msg.value > 0, "Bounty must include payment");
-
-        id = bountyCount++;
-        bounties[id] = Bounty({
-            requester: msg.sender,
-            agent: address(0),
-            amount: msg.value,
-            description: description,
-            status: Status.Open,
-            createdAt: block.timestamp
-        });
-
-        emit BountyCreated(id, msg.sender, msg.value, description);
+    modifier bountyExists(uint256 id) {
+        require(id < bountyCount, "Bounty does not exist");
+        _;
     }
 
-    function claimBounty(uint256 id) external {
-        Bounty storage bounty = bounties[id];
+    function bounties(uint256 id) external view bountyExists(id) returns (Bounty memory) {
+        return _bounties[id];
+    }
+
+    function createBounty(
+        address designatedAgent,
+        string calldata description,
+        uint256 workDuration,
+        uint256 reviewPeriod
+    ) external payable returns (uint256 id) {
+        require(msg.value > 0, "Bounty must include payment");
+        require(designatedAgent != address(0), "Agent is required");
+        require(designatedAgent != msg.sender, "Requester cannot be agent");
+        require(workDuration > 0, "Work duration is required");
+        require(reviewPeriod > 0, "Review period is required");
+
+        id = bountyCount++;
+        _bounties[id] = Bounty({
+            requester: msg.sender,
+            agent: designatedAgent,
+            amount: msg.value,
+            description: description,
+            submission: "",
+            status: Status.Open,
+            createdAt: block.timestamp,
+            workDeadline: 0,
+            reviewDeadline: 0,
+            workDuration: workDuration,
+            reviewPeriod: reviewPeriod,
+            requesterCancellationApproved: false,
+            agentCancellationApproved: false
+        });
+
+        emit BountyCreated(
+            id,
+            msg.sender,
+            designatedAgent,
+            msg.value,
+            description,
+            workDuration,
+            reviewPeriod
+        );
+    }
+
+    function acceptBounty(uint256 id) external bountyExists(id) {
+        Bounty storage bounty = _bounties[id];
         require(bounty.status == Status.Open, "Bounty not open");
-        require(msg.sender != bounty.requester, "Requester cannot claim own bounty");
+        require(msg.sender == bounty.agent, "Only designated agent can accept");
 
-        bounty.agent = msg.sender;
-        bounty.status = Status.Claimed;
+        bounty.status = Status.Accepted;
+        bounty.workDeadline = block.timestamp + bounty.workDuration;
 
-        emit BountyClaimed(id, msg.sender);
+        emit BountyAccepted(id, msg.sender, bounty.workDeadline);
     }
 
     function release(uint256 id) external nonReentrant {
-        Bounty storage bounty = bounties[id];
+        Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.requester, "Only requester can release");
-        require(bounty.status == Status.Claimed, "Bounty not claimed");
+        require(bounty.status == Status.Accepted, "Bounty not accepted");
 
         uint256 amount = bounty.amount;
         address agent = bounty.agent;
@@ -82,10 +132,10 @@ contract AgentEscrow is ReentrancyGuard {
     }
 
     function refund(uint256 id) external nonReentrant {
-        Bounty storage bounty = bounties[id];
+        Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.requester, "Only requester can refund");
         require(
-            bounty.status == Status.Open || bounty.status == Status.Claimed,
+            bounty.status == Status.Open || bounty.status == Status.Accepted,
             "Cannot refund in current state"
         );
 
@@ -99,7 +149,7 @@ contract AgentEscrow is ReentrancyGuard {
     }
 
     function rateAgent(uint256 id, uint8 score) external {
-        Bounty storage bounty = bounties[id];
+        Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.requester, "Only requester can rate");
         require(bounty.status == Status.Released, "Bounty not released");
         require(!bountyRated[id], "Bounty already rated");

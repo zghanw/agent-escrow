@@ -15,7 +15,7 @@ contract MaliciousRequester {
     }
 
     function createAndRefund(string calldata description) external payable {
-        bountyId = escrow.createBounty{value: msg.value}(description);
+        bountyId = escrow.createBounty{value: msg.value}(address(1), description, 1 days, 1 days);
         escrow.refund(bountyId);
     }
 
