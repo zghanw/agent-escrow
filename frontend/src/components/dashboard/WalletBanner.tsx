@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { shortAddr } from "@/lib/contract";
 
 export function WalletBanner({
@@ -15,11 +15,11 @@ export function WalletBanner({
     <div className={`banner ${connected ? "good" : "warn"}`}>
       <span>{connected ? `Connected: ${shortAddr(signerAddress!)}` : "Wallet not connected."}</span>
       <div className="flex gap-2">
-        {!connected && <Button onClick={onConnect}>Connect Wallet</Button>}
+        {!connected && <LiquidButton onClick={onConnect}>Connect Wallet</LiquidButton>}
         {connected && (
-          <Button variant="outline" onClick={onSwitchAccount}>
+          <LiquidButton variant="outline" onClick={onSwitchAccount}>
             Switch Account
-          </Button>
+          </LiquidButton>
         )}
       </div>
     </div>

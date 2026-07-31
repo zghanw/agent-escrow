@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import { Panel } from "./Panel";
 import { StatusTracker } from "./StatusTracker";
-import { Button } from "@/components/ui/button";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -64,9 +64,9 @@ export function BountyDetailPanel({
           value={idInput}
           onChange={(e) => setIdInput(e.target.value)}
         />
-        <Button variant="outline" disabled={!canInteract} onClick={() => onLoad(idInput)}>
+        <LiquidButton variant="outline" disabled={!canInteract} onClick={() => onLoad(idInput)}>
           Load
-        </Button>
+        </LiquidButton>
       </div>
 
       {detail && (
@@ -106,23 +106,23 @@ export function BountyDetailPanel({
       {detail && (
         <div className="flex gap-2 mt-3.5 flex-wrap">
           {detail.status === "Open" && !isRequester && (
-            <Button disabled={busy} onClick={() => onClaim(detail.id)}>
+            <LiquidButton disabled={busy} onClick={() => onClaim(detail.id)}>
               Claim Bounty
-            </Button>
+            </LiquidButton>
           )}
           {detail.status === "Open" && isRequester && (
-            <Button variant="outline" disabled={busy} onClick={() => onRefund(detail.id)}>
+            <LiquidButton variant="outline" disabled={busy} onClick={() => onRefund(detail.id)}>
               Cancel & Refund Myself
-            </Button>
+            </LiquidButton>
           )}
           {detail.status === "Claimed" && isRequester && (
             <>
-              <Button disabled={busy} onClick={() => onRelease(detail.id)}>
+              <LiquidButton disabled={busy} onClick={() => onRelease(detail.id)}>
                 Release Payment
-              </Button>
-              <Button variant="destructive" disabled={busy} onClick={() => onRefund(detail.id)}>
+              </LiquidButton>
+              <LiquidButton variant="destructive" disabled={busy} onClick={() => onRefund(detail.id)}>
                 Refund Instead
-              </Button>
+              </LiquidButton>
             </>
           )}
         </div>
@@ -142,9 +142,9 @@ export function BountyDetailPanel({
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" disabled={busy} onClick={() => onRate(detail.id, Number(rating))}>
+          <LiquidButton variant="outline" disabled={busy} onClick={() => onRate(detail.id, Number(rating))}>
             Rate Agent
-          </Button>
+          </LiquidButton>
         </div>
       )}
     </Panel>

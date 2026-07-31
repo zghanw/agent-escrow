@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { GlassFilter } from "@/components/ui/liquid-glass-button";
 import { useEscrow } from "@/hooks/useEscrow";
 import { WalletBanner } from "@/components/dashboard/WalletBanner";
 import { NetworkBanner } from "@/components/dashboard/NetworkBanner";
@@ -14,6 +15,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-theme">
+      <GlassFilter />
       <main className="max-w-[640px] mx-auto px-5 pt-8 pb-20">
         <header className="mb-7">
           <Link to="/" className="inline-block no-underline hover:opacity-80 transition-opacity">

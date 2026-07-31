@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Panel } from "./Panel";
-import { Button } from "@/components/ui/button";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
@@ -45,9 +45,9 @@ export function CreateBountyPanel({
         onChange={(e) => setAmount(e.target.value)}
       />
       <div className="mt-3.5">
-        <Button disabled={disabled} onClick={handleCreate}>
+        <LiquidButton disabled={disabled} onClick={handleCreate}>
           Create Bounty
-        </Button>
+        </LiquidButton>
       </div>
     </Panel>
   );
