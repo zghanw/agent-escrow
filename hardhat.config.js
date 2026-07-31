@@ -13,6 +13,12 @@ export default {
       accounts: PRIVATE_KEY,
       type: "http",
     },
+    botchainMainnet: {
+      url: "https://rpc.botchain.ai",
+      chainId: 677,
+      accounts: PRIVATE_KEY,
+      type: "http",
+    },
   },
   chainDescriptors: {
     968: {
@@ -22,6 +28,16 @@ export default {
           name: "BOT Chain Explorer",
           url: "https://scan.bohr.life",
           apiUrl: "https://scan.bohr.life/api",
+        },
+      },
+    },
+    677: {
+      name: "BOT Chain",
+      blockExplorers: {
+        blockscout: {
+          name: "BOT Chain Explorer",
+          url: "https://scan.botchain.ai",
+          apiUrl: "https://scan.botchain.ai/api",
         },
       },
     },

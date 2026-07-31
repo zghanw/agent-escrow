@@ -11,6 +11,7 @@ import { RecentBountiesPanel } from "@/components/dashboard/RecentBountiesPanel"
 import { BountyDetailPanel } from "@/components/dashboard/BountyDetailPanel";
 import { TxLog } from "@/components/dashboard/TxLog";
 import { Vault } from "@/components/dashboard/Vault";
+import { ProfilePanel } from "@/components/dashboard/ProfilePanel";
 import logoMark from "@/assets/logo.png";
 
 export default function Dashboard() {
@@ -48,6 +49,7 @@ export default function Dashboard() {
             <TabsTrigger value="bounties">Bounties</TabsTrigger>
             <TabsTrigger value="create">Create</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bounties" className="mt-4.5 space-y-4.5">
@@ -80,6 +82,10 @@ export default function Dashboard() {
 
           <TabsContent value="activity" className="mt-4.5">
             <EventFeedPanel feed={escrow.eventFeed} />
+          </TabsContent>
+
+          <TabsContent value="profile" className="mt-4.5">
+            <ProfilePanel signerAddress={escrow.signerAddress} explorerBase={escrow.explorerBase} ratingText={escrow.myRatingText} />
           </TabsContent>
         </Tabs>
 

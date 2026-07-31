@@ -143,6 +143,7 @@ export function useEscrow() {
   const [recentBountiesError, setRecentBountiesError] = useState<string | null>(null);
   const [eventFeed, setEventFeed] = useState<FeedEntry[]>([]);
   const [bountyDetail, setBountyDetail] = useState<BountyDetail | null>(null);
+  const [myRatingText, setMyRatingText] = useState<string | null>(null);
   const [log, setLog] = useState<LogState>({ message: "", kind: "" });
   const [busy, setBusy] = useState(false);
 
@@ -162,8 +163,29 @@ export function useEscrow() {
     });
   }, []);
 
+  const describeAgentRating = useCallback(async (agent: string) => {
+    if (agent === ethers.ZeroAddress) return "(no agent yet)";
+    const contract = contractRef.current!;
+    const summary = await contract.getAgentRatingSummary(agent);
+    if (summary.count === 0n) return "No ratings yet";
+    const average = Number(summary.totalScore) / Number(summary.count);
+    return `${average.toFixed(1)} / 5 (${summary.count.toString()} rating${summary.count === 1n ? "" : "s"})`;
+  }, []);
+
+  const refreshMyRating = useCallback(
+    async (address: string) => {
+      if (!contractRef.current) return;
+      try {
+        setMyRatingText(await describeAgentRating(address));
+      } catch {
+        /* transient RPC hiccup - not worth surfacing as an error */
+      }
+    },
+    [describeAgentRating]
+  );
+
   const setupEventFeed = useCallback(
-    (contract: ethers.Contract) => {
+    (contract: ethers.Contract, myAddress: string) => {
       contract.on("BountyCreated", (id, requester, amount, description) => {
         const text = formatEventLog("BountyCreated", [id, requester, amount, description]);
         if (text) addFeedEntry(text);
@@ -183,9 +205,10 @@ export function useEscrow() {
       contract.on("AgentRated", (bountyId, agent, requester, score) => {
         const text = formatEventLog("AgentRated", [bountyId, agent, requester, score]);
         if (text) addFeedEntry(text);
+        if (agent.toLowerCase() === myAddress.toLowerCase()) refreshMyRating(myAddress);
       });
     },
-    [addFeedEntry]
+    [addFeedEntry, refreshMyRating]
   );
 
   const refreshRecentBounties = useCallback(async () => {
@@ -272,12 +295,13 @@ export function useEscrow() {
       const isOnBotChain = await refreshNetwork();
       if (isOnBotChain) {
         await refreshRecentBounties();
+        await refreshMyRating(accounts[0]);
         await maybeBackfillEventFeed();
       }
-      setupEventFeed(contract);
+      setupEventFeed(contract, accounts[0]);
       writeLog("");
     },
-    [maybeBackfillEventFeed, refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
+    [maybeBackfillEventFeed, refreshMyRating, refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
   );
 
   const connectWallet = useCallback(async () => {
@@ -341,21 +365,13 @@ export function useEscrow() {
     const isOnBotChain = await refreshNetwork();
     if (isOnBotChain) {
       await refreshRecentBounties();
+      if (signerAddress) await refreshMyRating(signerAddress);
       await maybeBackfillEventFeed();
     }
-  }, [maybeBackfillEventFeed, refreshNetwork, refreshRecentBounties, writeLog]);
+  }, [maybeBackfillEventFeed, refreshMyRating, refreshNetwork, refreshRecentBounties, signerAddress, writeLog]);
 
   const requireSignerContract = useCallback(() => {
     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerRef.current!);
-  }, []);
-
-  const describeAgentRating = useCallback(async (agent: string) => {
-    if (agent === ethers.ZeroAddress) return "(no agent yet)";
-    const contract = contractRef.current!;
-    const summary = await contract.getAgentRatingSummary(agent);
-    if (summary.count === 0n) return "No ratings yet";
-    const average = Number(summary.totalScore) / Number(summary.count);
-    return `${average.toFixed(1)} / 5 (${summary.count.toString()} rating${summary.count === 1n ? "" : "s"})`;
   }, []);
 
   const loadBounty = useCallback(
@@ -485,6 +501,7 @@ export function useEscrow() {
         signerRef.current = null;
         setOnBotChain(false);
         setRecentBounties(null);
+        setMyRatingText(null);
         return;
       }
       await useAccounts(accounts);
@@ -529,6 +546,7 @@ export function useEscrow() {
     recentBountiesError,
     eventFeed,
     bountyDetail,
+    myRatingText,
     log,
     busy,
     explorerBase: EXPLORER_BASE,

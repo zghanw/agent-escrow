@@ -1,5 +1,10 @@
 import hre from "hardhat";
 
+const EXPLORERS = {
+  968: "https://scan.bohr.life",
+  677: "https://scan.botchain.ai",
+};
+
 async function main() {
   const connection = await hre.network.create();
   const { ethers, networkConfig } = connection;
@@ -11,17 +16,16 @@ async function main() {
   console.log(`Deployer: ${deployer.address} (balance: ${ethers.formatEther(balance)} BOT)`);
 
   if (balance === 0n) {
-    throw new Error(
-      `Deployer has no BOT. Fund ${deployer.address} from the testnet faucet before deploying.`
-    );
+    throw new Error(`Deployer has no BOT. Fund ${deployer.address} before deploying.`);
   }
 
   const escrow = await ethers.deployContract("AgentEscrow");
   await escrow.waitForDeployment();
 
   const address = await escrow.getAddress();
+  const explorer = EXPLORERS[Number(networkConfig.chainId)];
   console.log(`AgentEscrow deployed to: ${address}`);
-  console.log(`Explorer: https://scan.bohr.life/address/${address}`);
+  console.log(explorer ? `Explorer: ${explorer}/address/${address}` : "Explorer: (unknown chain)");
 }
 
 main().catch((error) => {
