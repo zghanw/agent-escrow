@@ -137,7 +137,7 @@ contract AgentEscrow is ReentrancyGuard {
         Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.agent, "Only designated agent can submit");
         require(bounty.status == Status.Accepted, "Bounty not accepted");
-        require(block.timestamp <= bounty.workDeadline, "Work deadline passed");
+        require(block.timestamp < bounty.workDeadline, "Work deadline passed");
         require(bytes(submission).length > 0, "Submission is required");
 
         bounty.submission = submission;

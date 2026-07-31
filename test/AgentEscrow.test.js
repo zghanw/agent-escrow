@@ -117,7 +117,7 @@ describe("AgentEscrow", function () {
     );
     await expect(escrow.connect(other).refundExpiredBounty(0)).to.be.revertedWith("Only requester can refund");
 
-    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(deadline + 1n)]);
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(deadline)]);
     await expect(escrow.connect(agent).submitWork(0, "ipfs://late")).to.be.revertedWith("Work deadline passed");
     const requesterBalanceBefore = await ethers.provider.getBalance(requester.address);
     const receipt = await (await escrow.connect(requester).refundExpiredBounty(0)).wait();
