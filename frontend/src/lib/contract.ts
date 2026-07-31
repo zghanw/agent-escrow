@@ -13,6 +13,13 @@ export const BOTCHAIN_TESTNET = {
 export const BOTCHAIN_CHAIN_ID_DEC = 968;
 export const EXPLORER_BASE = "https://scan.bohr.life";
 
+// Found via binary search on eth_getCode (no deployment record exists in
+// this repo) - the block this exact contract address was deployed at,
+// 2026-07-30T17:12:02Z. Lets the event-feed backfill skip straight to the
+// contract's real history instead of paging back through the whole chain.
+// Only needs updating if the contract is ever redeployed to a new address.
+export const CONTRACT_DEPLOY_BLOCK = 18128899;
+
 export const STATUS_NAMES = ["Open", "Claimed", "Released", "Refunded"] as const;
 export type StatusName = (typeof STATUS_NAMES)[number];
 

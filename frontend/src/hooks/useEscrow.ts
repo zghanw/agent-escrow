@@ -5,10 +5,12 @@ import {
   BOTCHAIN_TESTNET,
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
+  CONTRACT_DEPLOY_BLOCK,
   EXPLORER_BASE,
   STATUS_NAMES,
   describeConnectError,
   describeTxError,
+  shortAddr,
   type StatusName,
 } from "@/lib/contract";
 
@@ -20,6 +22,7 @@ declare global {
 
 const RECENT_BOUNTIES_LIMIT = 10;
 const FEED_LIMIT = 25;
+const MAX_LOG_RANGE = 4500; // stay under this RPC's undocumented 5000-block eth_getLogs cap
 
 export interface FeedEntry {
   id: number;
@@ -54,6 +57,85 @@ export interface LogState {
 
 let feedIdCounter = 0;
 
+// Shared by the live listeners (setupEventFeed) and the historical backfill
+// (backfillEventFeed) so both produce identical text for the same event.
+function formatEventLog(name: string, args: readonly any[]): string | null {
+  switch (name) {
+    case "BountyCreated": {
+      const [id, , amount, description] = args;
+      return `Bounty #${id.toString()} created for ${ethers.formatEther(amount)} BOT - "${description}"`;
+    }
+    case "BountyClaimed": {
+      const [id, agent] = args;
+      return `Bounty #${id.toString()} claimed by ${shortAddr(agent)}`;
+    }
+    case "BountyReleased": {
+      const [id, agent, amount] = args;
+      return `Bounty #${id.toString()} released - ${ethers.formatEther(amount)} BOT paid to ${shortAddr(agent)}`;
+    }
+    case "BountyRefunded": {
+      const [id, requester, amount] = args;
+      return `Bounty #${id.toString()} refunded - ${ethers.formatEther(amount)} BOT back to ${shortAddr(requester)}`;
+    }
+    case "AgentRated": {
+      const [bountyId, agent, , score] = args;
+      return `Bounty #${bountyId.toString()}: ${shortAddr(agent)} rated ${score.toString()}/5`;
+    }
+    default:
+      return null;
+  }
+}
+
+// One-time history read so the Activity tab isn't empty just because its
+// events fired before this page load's live listeners existed - `contract.on`
+// only ever reports events going forward from the moment it's registered.
+// Chunks the range from deploy to latest (this RPC rejects >5000 blocks per
+// eth_getLogs call) and fetches all chunks in parallel rather than paging
+// sequentially, since the chain is already 100k+ blocks past this contract's
+// deployment.
+async function backfillEventFeed(contract: ethers.Contract, provider: ethers.Provider): Promise<FeedEntry[]> {
+  const latest = await provider.getBlockNumber();
+
+  const ranges: Array<[number, number]> = [];
+  for (let to = latest; to >= CONTRACT_DEPLOY_BLOCK; to -= MAX_LOG_RANGE) {
+    const from = Math.max(CONTRACT_DEPLOY_BLOCK, to - MAX_LOG_RANGE + 1);
+    ranges.push([from, to]);
+  }
+
+  const chunks = await Promise.all(
+    ranges.map(([from, to]) =>
+      contract.queryFilter("*", from, to).catch(() => [] as (ethers.EventLog | ethers.Log)[])
+    )
+  );
+
+  const logs = chunks
+    .flat()
+    .filter((log): log is ethers.EventLog => "args" in log && "fragment" in log)
+    .sort((a, b) => a.blockNumber - b.blockNumber || a.index - b.index)
+    .slice(-FEED_LIMIT);
+
+  const blockTimestamps = new Map<number, number>();
+  await Promise.all(
+    [...new Set(logs.map((log) => log.blockNumber))].map(async (blockNumber) => {
+      const block = await provider.getBlock(blockNumber);
+      if (block) blockTimestamps.set(blockNumber, block.timestamp);
+    })
+  );
+
+  const entries: FeedEntry[] = [];
+  for (const log of logs) {
+    const text = formatEventLog(log.fragment.name, log.args);
+    if (!text) continue;
+    const timestamp = blockTimestamps.get(log.blockNumber);
+    entries.push({
+      id: feedIdCounter++,
+      time: timestamp ? new Date(timestamp * 1000).toLocaleTimeString() : "",
+      text,
+    });
+  }
+  return entries.reverse(); // newest first, matching addFeedEntry's convention
+}
+
 export function useEscrow() {
   const [signerAddress, setSignerAddress] = useState<string | null>(null);
   const [onBotChain, setOnBotChain] = useState(false);
@@ -67,6 +149,7 @@ export function useEscrow() {
   const providerRef = useRef<ethers.BrowserProvider | null>(null);
   const signerRef = useRef<ethers.JsonRpcSigner | null>(null);
   const contractRef = useRef<ethers.Contract | null>(null);
+  const hasBackfilledRef = useRef(false);
 
   const writeLog = useCallback((message: string, kind: LogKind = "", txHash?: string) => {
     setLog({ message, kind, txHash });
@@ -81,24 +164,25 @@ export function useEscrow() {
 
   const setupEventFeed = useCallback(
     (contract: ethers.Contract) => {
-      contract.on("BountyCreated", (id, _requester, amount, description) => {
-        addFeedEntry(`Bounty #${id.toString()} created for ${ethers.formatEther(amount)} BOT - "${description}"`);
+      contract.on("BountyCreated", (id, requester, amount, description) => {
+        const text = formatEventLog("BountyCreated", [id, requester, amount, description]);
+        if (text) addFeedEntry(text);
       });
       contract.on("BountyClaimed", (id, agent) => {
-        addFeedEntry(`Bounty #${id.toString()} claimed by ${agent.slice(0, 6)}…${agent.slice(-4)}`);
+        const text = formatEventLog("BountyClaimed", [id, agent]);
+        if (text) addFeedEntry(text);
       });
       contract.on("BountyReleased", (id, agent, amount) => {
-        addFeedEntry(
-          `Bounty #${id.toString()} released - ${ethers.formatEther(amount)} BOT paid to ${agent.slice(0, 6)}…${agent.slice(-4)}`
-        );
+        const text = formatEventLog("BountyReleased", [id, agent, amount]);
+        if (text) addFeedEntry(text);
       });
       contract.on("BountyRefunded", (id, requester, amount) => {
-        addFeedEntry(
-          `Bounty #${id.toString()} refunded - ${ethers.formatEther(amount)} BOT back to ${requester.slice(0, 6)}…${requester.slice(-4)}`
-        );
+        const text = formatEventLog("BountyRefunded", [id, requester, amount]);
+        if (text) addFeedEntry(text);
       });
-      contract.on("AgentRated", (bountyId, agent, _requester, score) => {
-        addFeedEntry(`Bounty #${bountyId.toString()}: ${agent.slice(0, 6)}…${agent.slice(-4)} rated ${score.toString()}/5`);
+      contract.on("AgentRated", (bountyId, agent, requester, score) => {
+        const text = formatEventLog("AgentRated", [bountyId, agent, requester, score]);
+        if (text) addFeedEntry(text);
       });
     },
     [addFeedEntry]
@@ -156,6 +240,21 @@ export function useEscrow() {
     }
   }, []);
 
+  // Runs once per hook instance (not per account/network switch - the
+  // contract's history doesn't depend on which account is connected).
+  // Awaited fully before any live listeners are registered, so a real-time
+  // event can't land in the gap and get clobbered by this backfill's
+  // one-shot setEventFeed.
+  const maybeBackfillEventFeed = useCallback(async () => {
+    if (hasBackfilledRef.current || !contractRef.current || !providerRef.current) return;
+    hasBackfilledRef.current = true;
+    try {
+      setEventFeed(await backfillEventFeed(contractRef.current, providerRef.current));
+    } catch {
+      /* best-effort - the live feed still works going forward */
+    }
+  }, []);
+
   const useAccounts = useCallback(
     async (accounts: string[]) => {
       // "any" tells ethers not to treat a runtime chain change as a fatal
@@ -169,13 +268,16 @@ export function useEscrow() {
       contractRef.current?.removeAllListeners();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       contractRef.current = contract;
-      setupEventFeed(contract);
 
       const isOnBotChain = await refreshNetwork();
-      if (isOnBotChain) await refreshRecentBounties();
+      if (isOnBotChain) {
+        await refreshRecentBounties();
+        await maybeBackfillEventFeed();
+      }
+      setupEventFeed(contract);
       writeLog("");
     },
-    [refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
+    [maybeBackfillEventFeed, refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
   );
 
   const connectWallet = useCallback(async () => {
@@ -236,9 +338,12 @@ export function useEscrow() {
         return;
       }
     }
-    await refreshNetwork();
-    await refreshRecentBounties();
-  }, [refreshNetwork, refreshRecentBounties, writeLog]);
+    const isOnBotChain = await refreshNetwork();
+    if (isOnBotChain) {
+      await refreshRecentBounties();
+      await maybeBackfillEventFeed();
+    }
+  }, [maybeBackfillEventFeed, refreshNetwork, refreshRecentBounties, writeLog]);
 
   const requireSignerContract = useCallback(() => {
     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerRef.current!);
