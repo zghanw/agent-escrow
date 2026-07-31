@@ -17,7 +17,7 @@ Two options considered:
 ## Tech stack
 
 - **Contract:** Solidity ^0.8.24, Hardhat, OpenZeppelin `ReentrancyGuard`.
-- **Frontend:** Single `index.html`, inline `<script>`, ethers.js v6 via CDN. No bundler.
+- **Frontend:** *Originally* a single `index.html`, inline `<script>`, ethers.js v6 via CDN, no bundler (per the "Architecture" decision above). **Pivoted mid-build** ("Migrate frontend to React + Vite + shadcn/ui" and "Redesign frontend: wallet-gate flow, 3D vault, tabbed dashboard" commits): the shipped frontend is React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui, with `react-router-dom` (`HashRouter`) for client-side routing and a `@react-three/fiber`/`three` 3D vault component on the dashboard. Still no backend and still ethers.js v6 talking directly to the contract - only the UI layer changed. See `README.md`'s Architecture section for the current, accurate description.
 - **Deploy:** GitHub Pages (frontend + repo in one place); Vercel as a fallback only if Pages caching becomes a problem mid-hack.
 - **Chain - BOT Chain testnet** (build and demo here; only touch mainnet once the full flow is proven):
   - Chain ID: `968`

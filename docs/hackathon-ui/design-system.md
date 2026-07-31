@@ -3,6 +3,14 @@
 <!-- Filled in by hackathon-ui. hackathon-build's implementers read this
      file for every later feature task, once it exists. -->
 
+> **Superseded.** This document records the first design pass (the Nexflow-inspired
+> light-page/dark-panel system below). The app was redesigned again during the
+> "Redesign frontend: wallet-gate flow, 3D vault, tabbed dashboard" build stage into
+> a different system - a void-black "Trading Terminal" theme with a gold `#ffc700`
+> accent and a Sentient serif display font. That current system is documented in
+> [`DESIGN.md`](../../DESIGN.md) at the repo root. This file remains a valid
+> historical record of the first pass, but is no longer the live reference.
+
 ## Chosen style
 
 - **Archetype:** Direct external reference, not a catalog pick - the user asked to replicate [Nexflow](https://www.nextjsshop.com/templates/nexflow/preview) (a Next.js/shadcn dev-tool template) specifically, which overrides the normal "pick from `references/ui-styles.md`" step. Closest catalog cousin is archetype 3, Technical/developer tool, but Nexflow's actual structure - a light "paper" page shell with near-black cards floating on it, sharp (0-4px) corners, and corner-bracket "blueprint" accents - isn't fully captured by either of that archetype's two palettes, so this is a custom-adapted token set, documented here rather than pulled as-is.

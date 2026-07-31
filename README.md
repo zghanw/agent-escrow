@@ -33,7 +33,7 @@ Every action shows up instantly in the **Live activity** feed, and every transac
 
 ## Architecture
 
-Single static `index.html` - vanilla JavaScript, [ethers.js](https://ethers.org/) v6 loaded via CDN, no build step, no framework, no backend. The page talks directly to the contract; on-chain state *is* the UI's state. This mirrors the guidebook's own advice ("One HTML file is enough!") and keeps the live demo as hard to break as possible: no bundler to fail, no framework hydration bug to hit mid-demo.
+The frontend started life as a single static `index.html` - vanilla JavaScript, ethers.js v6 loaded via CDN, no build step, no framework - per the guidebook's own advice ("One HTML file is enough!"). It was migrated mid-build to a proper React app: **React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui**, with client-side routing via `react-router-dom` (`HashRouter`, so it still works unmodified on GitHub Pages) and a `@react-three/fiber`/`three` 3D vault component on the dashboard that animates in sync with each bounty's on-chain status. There's still no backend: the app talks directly to the contract via [ethers.js](https://ethers.org/) v6, and on-chain state *is* the UI's state - only the presentation layer changed.
 
 The Solidity side is a single contract, [`AgentEscrow.sol`](contracts/AgentEscrow.sol), built with [Hardhat](https://hardhat.org/) and OpenZeppelin's `ReentrancyGuard`.
 
@@ -72,7 +72,7 @@ BOT Chain testnet: chain ID `968`, RPC `https://rpc.bohr.life`, explorer `https:
 
 ## Tech stack
 
-Solidity ^0.8.24, Hardhat 3, OpenZeppelin Contracts, ethers.js v6, vanilla HTML/CSS/JS, GitHub Pages.
+Solidity ^0.8.24, Hardhat 3, OpenZeppelin Contracts, ethers.js v6, React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui + react-router-dom + @react-three/fiber, GitHub Pages.
 
 ## Project docs
 

@@ -3,6 +3,14 @@
 <!-- Filled in by hackathon-ui. Applies design-system.md to Feature Zero's
      existing UI; docs/hackathon-ui/progress.md tracks status against it. -->
 
+> **Superseded.** This plan applies the first design pass documented in
+> `design-system.md` (the Nexflow-inspired light-page/dark-panel system) to the
+> original single-file `index.html`. The app has since been redesigned again (see
+> the "Redesign frontend: wallet-gate flow, 3D vault, tabbed dashboard" build stage)
+> into a different system, documented in [`DESIGN.md`](../../DESIGN.md) at the repo
+> root, which is now the current source of truth. This file remains a valid
+> historical record of the first pass's task list, but is no longer the live plan.
+
 ## Task list
 
 | # | Task | Tier | Feature area |
