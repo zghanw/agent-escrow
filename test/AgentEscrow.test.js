@@ -77,6 +77,117 @@ describe("AgentEscrow", function () {
     ).to.be.revertedWith("Review period is required");
   });
 
+  it("lets the requester cancel an open bounty and returns the full principal", async function () {
+    const { ethers, escrow, requester, agent } = await deployFixture();
+    const [, , other] = await ethers.getSigners();
+    const amount = ethers.parseEther("0.75");
+
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "audit a contract", 86400, 7200, { value: amount })
+    ).wait();
+
+    await expect(escrow.connect(other).cancelOpenBounty(0)).to.be.revertedWith("Only requester can cancel");
+
+    const requesterBalanceBefore = await ethers.provider.getBalance(requester.address);
+    const receipt = await (await escrow.connect(requester).cancelOpenBounty(0)).wait();
+    const requesterBalanceAfter = await ethers.provider.getBalance(requester.address);
+
+    expect(requesterBalanceAfter - requesterBalanceBefore).to.equal(amount - gasCost(receipt));
+    expect((await escrow.bounties(0)).status).to.equal(5n);
+    await expect(escrow.connect(agent).acceptBounty(0)).to.be.revertedWith("Bounty not open");
+  });
+
+  it("refunds only after the accepted agent misses the work deadline", async function () {
+    const { ethers, escrow, requester, agent } = await deployFixture();
+    const [, , other] = await ethers.getSigners();
+    const amount = ethers.parseEther("0.4");
+
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "prepare a dataset", 3600, 1800, { value: amount })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
+    const deadline = (await escrow.bounties(0)).workDeadline;
+
+    await expect(escrow.connect(requester).refundExpiredBounty(0)).to.be.revertedWith(
+      "Work deadline not reached"
+    );
+    await expect(escrow.connect(other).refundExpiredBounty(0)).to.be.revertedWith("Only requester can refund");
+
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(deadline + 1n)]);
+    await expect(escrow.connect(agent).submitWork(0, "ipfs://late")).to.be.revertedWith("Work deadline passed");
+    const requesterBalanceBefore = await ethers.provider.getBalance(requester.address);
+    const receipt = await (await escrow.connect(requester).refundExpiredBounty(0)).wait();
+    const requesterBalanceAfter = await ethers.provider.getBalance(requester.address);
+
+    expect(requesterBalanceAfter - requesterBalanceBefore).to.equal(amount - gasCost(receipt));
+    expect((await escrow.bounties(0)).status).to.equal(4n);
+  });
+
+  it("requires submitted work before requester release and pays the agent", async function () {
+    const { ethers, escrow, requester, agent } = await deployFixture();
+    const [, , other] = await ethers.getSigners();
+    const amount = ethers.parseEther("1");
+    const reviewPeriod = 7200n;
+
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "write a poem", 86400, reviewPeriod, { value: amount })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
+
+    await expect(escrow.connect(requester).release(0)).to.be.revertedWith("Bounty not submitted");
+    await expect(escrow.connect(other).submitWork(0, "ipfs://deliverable")).to.be.revertedWith(
+      "Only designated agent can submit"
+    );
+    await expect(escrow.connect(agent).submitWork(0, "")).to.be.revertedWith("Submission is required");
+
+    const submissionReceipt = await (await escrow.connect(agent).submitWork(0, "ipfs://deliverable")).wait();
+    const submissionBlock = await ethers.provider.getBlock(submissionReceipt.blockNumber);
+    const submitted = await escrow.bounties(0);
+
+    expect(submitted.status).to.equal(2n);
+    expect(submitted.submission).to.equal("ipfs://deliverable");
+    expect(submitted.reviewDeadline).to.equal(BigInt(submissionBlock.timestamp) + reviewPeriod);
+    await expect(escrow.connect(other).release(0)).to.be.revertedWith("Only requester can release");
+
+    const agentBalanceBefore = await ethers.provider.getBalance(agent.address);
+    await (await escrow.connect(requester).release(0)).wait();
+    const agentBalanceAfter = await ethers.provider.getBalance(agent.address);
+
+    expect(agentBalanceAfter - agentBalanceBefore).to.equal(amount);
+    expect((await escrow.bounties(0)).status).to.equal(3n);
+  });
+
+  it("lets anyone finalize payment after the requester review deadline", async function () {
+    const { ethers, escrow, requester, agent } = await deployFixture();
+    const [, , other] = await ethers.getSigners();
+    const amount = ethers.parseEther("0.6");
+
+    await (
+      await escrow
+        .connect(requester)
+        .createBounty(agent.address, "summarize findings", 86400, 3600, { value: amount })
+    ).wait();
+    await (await escrow.connect(agent).acceptBounty(0)).wait();
+    await (await escrow.connect(agent).submitWork(0, "ar://result")).wait();
+    const deadline = (await escrow.bounties(0)).reviewDeadline;
+
+    await expect(escrow.connect(other).finalize(0)).to.be.revertedWith("Review deadline not reached");
+
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(deadline)]);
+    const agentBalanceBefore = await ethers.provider.getBalance(agent.address);
+    await (await escrow.connect(other).finalize(0)).wait();
+    const agentBalanceAfter = await ethers.provider.getBalance(agent.address);
+
+    expect(agentBalanceAfter - agentBalanceBefore).to.equal(amount);
+    expect((await escrow.bounties(0)).status).to.equal(3n);
+  });
+
   it("moves funds correctly through create -> claim -> release", async function () {
     const { ethers, escrow, requester, agent } = await deployFixture();
     const amount = ethers.parseEther("1");
