@@ -11,7 +11,7 @@ import { shortAddr } from "@/lib/contract";
 // concept-seed.mjs --scope surface --mode operate (seed 5a756c22, index 6).
 
 const ROW = {
-  pending: "text-white/30",
+  pending: "text-white/60",
   active: "text-white/70",
   bad: "text-[var(--gate-bad)]",
   good: "text-[var(--gate-good)]",
@@ -42,7 +42,7 @@ export default function WalletGate() {
 
       <main className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-[440px]">
-          <p className="font-mono text-[0.7rem] uppercase tracking-[0.15em] text-white/40 text-center mb-2">Access ledger</p>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.15em] text-white/60 text-center mb-2">Access ledger</p>
           <h1 className="font-sentient text-3xl sm:text-4xl text-center font-light mb-8">Sign in to continue</h1>
 
           <div className="gate-ledger relative border border-[color:var(--landing-border)] bg-black/50 backdrop-blur-sm">
@@ -52,7 +52,7 @@ export default function WalletGate() {
             {/* Wallet row */}
             <div className="gate-row flex items-center justify-between gap-4 px-5 py-4">
               <div>
-                <p className="font-mono text-xs uppercase tracking-wide text-white/40 mb-1">01 &middot; Wallet</p>
+                <p className="font-mono text-xs uppercase tracking-wide text-white/60 mb-1">01 &middot; Wallet</p>
                 <p className={`font-mono text-sm ${walletDone ? ROW.good : ROW.active}`}>
                   {walletDone ? shortAddr(signerAddress!) : "Not connected"}
                 </p>
@@ -74,7 +74,7 @@ export default function WalletGate() {
             {/* Network row */}
             <div className={`gate-row flex items-center justify-between gap-4 px-5 py-4 transition-opacity duration-300 ${walletDone ? "opacity-100" : "opacity-35"}`}>
               <div>
-                <p className="font-mono text-xs uppercase tracking-wide text-white/40 mb-1">02 &middot; Network</p>
+                <p className="font-mono text-xs uppercase tracking-wide text-white/60 mb-1">02 &middot; Network</p>
                 <p className={`font-mono text-sm ${!walletDone ? ROW.pending : networkDone ? ROW.good : ROW.bad}`}>
                   {!walletDone ? "—" : networkDone ? "BOT Chain testnet" : "Wrong network"}
                 </p>
@@ -96,7 +96,7 @@ export default function WalletGate() {
             {/* Access row */}
             <div className={`gate-row flex items-center justify-between gap-4 px-5 py-4 transition-opacity duration-300 ${networkDone ? "opacity-100" : "opacity-35"}`}>
               <div>
-                <p className="font-mono text-xs uppercase tracking-wide text-white/40 mb-1">03 &middot; Access</p>
+                <p className="font-mono text-xs uppercase tracking-wide text-white/60 mb-1">03 &middot; Access</p>
                 <p className={`font-mono text-sm ${granted ? ROW.good : ROW.pending}`}>{granted ? "Granted - entering app" : "Locked"}</p>
               </div>
               {granted && <Stamp />}
@@ -105,7 +105,7 @@ export default function WalletGate() {
 
           {log.kind === "err" && <p className="font-mono text-xs text-[var(--gate-bad)] text-center mt-4">{log.message}</p>}
 
-          <p className="font-mono text-[0.7rem] text-white/35 text-center mt-6">
+          <p className="font-mono text-[0.7rem] text-white/60 text-center mt-6">
             You'll approve this in your wallet. No funds move here &mdash; this only reads your address and network.
           </p>
         </div>

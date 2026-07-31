@@ -24,12 +24,12 @@ export function RecentBountiesPanel({
   return (
     <Panel heading="Recent bounties">
       {emptyMessage && (
-        <p className="text-sm" style={{ color: "var(--panel-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
           {emptyMessage}
         </p>
       )}
       {noBountiesYet && (
-        <p className="text-sm" style={{ color: "var(--panel-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
           No bounties yet.{" "}
           <button
             type="button"

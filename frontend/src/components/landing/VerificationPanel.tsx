@@ -41,7 +41,7 @@ export function VerificationPanel() {
       <span className="verify-bracket verify-bracket-br" aria-hidden="true" />
 
       <div className="flex items-center justify-between gap-3">
-        <span className="uppercase tracking-wide text-white/40">Contract</span>
+        <span className="uppercase tracking-wide text-white/60">Contract</span>
         <a
           href={`${EXPLORER_BASE}/address/${CONTRACT_ADDRESS}#code`}
           target="_blank"
@@ -53,7 +53,7 @@ export function VerificationPanel() {
       </div>
 
       <div className="flex items-center justify-between gap-3 mt-2">
-        <span className="uppercase tracking-wide text-white/40">Status</span>
+        <span className="uppercase tracking-wide text-white/60">Status</span>
         <span className="inline-flex items-center gap-1.5 text-[color:var(--landing-primary)]">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
             <path d="M1.5 5.2L3.8 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -63,7 +63,7 @@ export function VerificationPanel() {
       </div>
 
       <div className="flex items-center justify-between gap-3 mt-2">
-        <span className="uppercase tracking-wide text-white/40">Bounties created</span>
+        <span className="uppercase tracking-wide text-white/60">Bounties created</span>
         <span className="text-white tabular-nums">{bountyCount === null ? "—" : bountyCount}</span>
       </div>
     </div>

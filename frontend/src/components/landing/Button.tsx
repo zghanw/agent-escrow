@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-black border-[color:var(--landing-primary)] text-white shadow-[0_8px_28px_-10px_var(--landing-primary)] hover:shadow-[0_10px_36px_-6px_var(--landing-primary)]",
+          "bg-black border-[color:var(--landing-primary)] text-white shadow-[0_8px_28px_-10px_var(--landing-primary)] hover:shadow-[0_10px_36px_-6px_var(--landing-primary)] focus-visible:ring-2 focus-visible:ring-[color:var(--landing-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
       },
       size: {
         default: "h-16 px-6 text-base",

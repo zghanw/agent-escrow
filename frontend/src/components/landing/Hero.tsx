@@ -35,7 +35,7 @@ export function Hero() {
             [Launch App]
           </LandingButton>
         </Link>
-        <p className="font-mono text-[0.7rem] text-white/35 mt-3 uppercase tracking-wide">Needs MetaMask &middot; BOT Chain testnet</p>
+        <p className="font-mono text-[0.7rem] text-white/60 mt-3 uppercase tracking-wide">Needs MetaMask &middot; BOT Chain testnet</p>
       </div>
     </div>
   );

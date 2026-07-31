@@ -5,7 +5,7 @@ export function EventFeedPanel({ feed }: { feed: FeedEntry[] }) {
   return (
     <Panel heading="Live activity">
       {feed.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--panel-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
           Watching the contract for new activity - actions you or anyone else takes will appear here in real time.
         </p>
       ) : (

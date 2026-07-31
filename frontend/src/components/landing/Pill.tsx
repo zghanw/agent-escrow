@@ -11,7 +11,7 @@ export const Pill = ({ children, className }: { children: ReactNode; className?:
     <div
       style={{ "--poly-roundness": px(polyRoundness) } as React.CSSProperties}
       className={cn(
-        "bg-[#262626]/50 transform-gpu font-medium text-white/50 backdrop-blur-xs font-mono text-sm inline-flex items-center justify-center px-3 h-8 border border-[color:var(--landing-border)] [clip-path:polygon(var(--poly-roundness)_0,calc(100%_-_var(--poly-roundness))_0,100%_var(--poly-roundness),100%_calc(100%_-_var(--poly-roundness)),calc(100%_-_var(--poly-roundness))_100%,var(--poly-roundness)_100%,0_calc(100%_-_var(--poly-roundness)),0_var(--poly-roundness))]",
+        "bg-[#262626]/50 transform-gpu font-medium text-white/60 backdrop-blur-xs font-mono text-sm inline-flex items-center justify-center px-3 h-8 border border-[color:var(--landing-border)] [clip-path:polygon(var(--poly-roundness)_0,calc(100%_-_var(--poly-roundness))_0,100%_var(--poly-roundness),100%_calc(100%_-_var(--poly-roundness)),calc(100%_-_var(--poly-roundness))_100%,var(--poly-roundness)_100%,0_calc(100%_-_var(--poly-roundness)),0_var(--poly-roundness))]",
         className
       )}
     >
