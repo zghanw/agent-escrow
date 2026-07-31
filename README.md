@@ -1,95 +1,166 @@
-# Agent Escrow
+<div align="center">
+  <img width=250 src="frontend\public\favicon.png">
+  <br><br>
+  <h1>Agent Escrow</h1>
+  <p><strong>Trust-minimized payments and on-chain reputation for agent-to-agent work on BOT Chain.</strong></p>
+  <p>
+    <a href="https://zghanw.github.io/agent-escrow/"><strong>Live App</strong></a>
+    &nbsp;|&nbsp;
+    <a href="https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code"><strong>Verified V1 Contract</strong></a>
+    &nbsp;|&nbsp;
+    <a href="contracts/AgentEscrow.sol"><strong>V2 Source Contract</strong></a>
+  </p>
+  <p>
+    <img alt="Solidity 0.8.24" src="https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity&logoColor=white">
+    <img alt="Hardhat 3" src="https://img.shields.io/badge/Hardhat-3-FFF100?style=flat-square">
+    <img alt="React 19" src="https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB">
+    <img alt="BOT Chain Testnet" src="https://img.shields.io/badge/BOT_Chain-Testnet-FFD600?style=flat-square&labelColor=111111">
+    <img alt="16 passing tests" src="https://img.shields.io/badge/Tests-16_passing-20C997?style=flat-square">
+  </p>
+</div>
 
-<!-- TODO (submission requirement): record a short screen capture of the
-     live create → accept → submit → release → rate walkthrough below, save it as
-     demo.gif in this repo, and replace this comment with:
-     ![Agent Escrow demo](demo.gif)
-     This GIF also doubles as the asset for the required X post. -->
+<img src="docs/readme/landing.png" alt="Agent Escrow landing page with verified BOT Chain contract" width="100%">
 
-Fund a task for a designated agent, record delivery on-chain, and settle through symmetric work and review deadlines — no middleman and no unilateral post-acceptance refund.
+| Verified testnet proof | Source confidence | Direct architecture |
+|---|---|---|
+| [Live V1 contract](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code) with real two-wallet settlement | [V2 lifecycle](contracts/AgentEscrow.sol) covered by [16 passing tests](test/) | Static React client connects directly to BOT Chain through ethers.js |
 
-**Live app:** https://zghanw.github.io/agent-escrow/
-**Legacy V1 contract (BOT Chain testnet, verified):** [`0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1`](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code)
+Agent Escrow replaces informal payment promises with a transparent contract state machine. A requester locks BOT, an agent completes the work, payment settles on-chain, and the resulting rating becomes a public trust signal.
 
-V2 is implemented and tested in this repository but is not presented as live until a new immutable contract is deployed and the frontend receives its address and deployment block.
+**Deployment status:** The public app, screenshots, and transaction receipts below prove the verified V1 testnet flow. This repository contains the tested V2 designated-agent lifecycle and is not presented as deployed until a new immutable address is published.
 
-## The problem
+## 60-second testnet demo
 
-An AI agent (or the human running it) doing paid work for a stranger on BOT Chain has no recourse if the requester ghosts after delivery - and a requester has no recourse if an agent takes payment and never delivers. Every agent-to-agent gig today runs on a Discord DM and a hope. Agent Escrow is the missing payment primitive: funds sit in the contract, not with either party, until the work is confirmed done.
+1. **Create:** the requester locks `0.001 BOT` in escrow.
+2. **Claim:** a second wallet becomes the agent.
+3. **Release:** the requester settles the escrow to that agent.
+4. **Rate:** the requester records a `5 / 5` reputation signal.
 
-## How to use it
+| 1. Fund the bounty | 2. Claim from a second wallet |
+|---|---|
+| <img src="docs/readme/created.png" alt="Newly funded open bounty" width="100%"> | <img src="docs/readme/claimed.png" alt="Bounty claimed by a second wallet" width="100%"> |
+| The contract holds the requester's BOT. | The bounty records an independent agent address. |
 
-1. Open the [live app](https://zghanw.github.io/agent-escrow/) and click **Connect Wallet** (MetaMask). If BOT Chain testnet isn't configured yet, click **Add / Switch to BOT Chain** - the app configures it for you.
-2. **Create a bounty** with the task, BOT amount, designated agent address, work window, and requester review window. Funds move into the contract immediately.
-3. The designated wallet **accepts** the bounty. The work deadline starts at acceptance; no unrelated wallet can take the job.
-4. The agent **submits work** by recording a deliverable URL or content hash before the work deadline.
-5. The requester **releases payment** during review. If the requester does nothing, anyone can call `finalize` at the review deadline and the contract pays the agent.
-6. If the agent misses the work deadline, the requester can recover the escrow. While work is active, both parties can approve a mutual cancellation; one approval alone moves no funds.
-7. Once released, the requester can **rate the agent** 1–5. Ratings accumulate per agent address and are visible to anyone looking up that agent.
+| 3. Release payment | 4. Record reputation |
+|---|---|
+| <img src="docs/readme/released.png" alt="Released bounty with completed settlement" width="100%"> | <img src="docs/readme/rated.png" alt="Agent profile showing a five star on-chain rating" width="100%"> |
+| Escrow pays the recorded agent. | The released bounty contributes one permanent rating. |
 
-Every action shows up instantly in the **Live activity** feed, and every transaction links straight to the block explorer.
+### On-chain receipts
 
-## Why this is more than a toy
+| Action | Testnet proof |
+|---|---|
+| Create bounty #1 | [Transaction `0x070f...c13b`](https://scan.bohr.life/tx/0x070fda6b70ede515cec7c1bd0d9dd05511bf2741c69b4d05c478e604c16ac13b) |
+| Claim bounty #1 | [Transaction `0x0f10...a3fc`](https://scan.bohr.life/tx/0x0f10ed4087f8d120c6ed74cdc8921454f2bc62ac2ea9bfd375497b9a47c0a3fc) |
+| Release bounty #1 | [Transaction `0xefd0...5bcd`](https://scan.bohr.life/tx/0xefd08a8a0df82e686771d40249b9c8b7b744f3be28634e7b285444821e8f5bcd) |
+| Rate bounty #1 | [Transaction `0xb548...db5`](https://scan.bohr.life/tx/0xb548ab315093db60ff3a2fd29e43c6ea66e8fcec4d101efa59affe478afc4db5) |
+| Refund bounty #2 | [Transaction `0x8fb3...b89`](https://scan.bohr.life/tx/0x8fb3ab738c812628123fcd56c7795703c760fd5a7748e9b8351efe92475bdb89) |
 
-- **Real value moves between two independent wallets** - not a single self-directed click. That's the difference between "wallet connects" as a checkbox and as a working payment flow.
-- **On-chain reputation.** After release, the requester rates the agent on-chain (`rateAgent`), building a persistent, queryable trust signal per agent address - a lightweight, self-contained take on the direction [ERC-8004](https://www.allium.so/blog/onchain-ai-identity-what-erc-8004-unlocks-for-agent-infrastructure/) (identity/reputation registries for AI agents, live on Ethereum mainnet since Jan 2026) and [x402](https://www.rzlt.io/blog/agentic-payments-2026-x402-explainer)-style agent-payment infrastructure are heading in.
-- **A real revenue model, not built in:** a production version would take a 1-2% fee on release (the standard marketplace-escrow cut) - deliberately left out of this build to keep the fund-moving code as small and auditable as possible for the hackathon window.
+All demo transactions used disposable wallets and testnet BOT only.
+
+## Product tour
+
+| Wallet access ledger | Bounty dashboard |
+|---|---|
+| <img src="docs/readme/access-ledger.png" alt="Wallet, network, and access checks" width="100%"> | <img src="docs/readme/bounties.png" alt="Bounty dashboard with recent escrow states" width="100%"> |
+
+| Create flow | Live activity |
+|---|---|
+| <img src="docs/readme/create.png" alt="Create bounty form" width="100%"> | <img src="docs/readme/activity.png" alt="On-chain escrow activity feed" width="100%"> |
+
+| Agent profile | Refund branch |
+|---|---|
+| <img src="docs/readme/profile.png" alt="Agent reputation profile" width="100%"> | <img src="docs/readme/refunded.png" alt="Refunded bounty state" width="100%"> |
+
+## Why Agent Escrow
+
+- **Independent parties:** value moves between separate requester and agent wallets.
+- **Explicit state:** every lifecycle transition is inspectable on-chain.
+- **Recoverable failure paths:** open cancellation, missed-deadline refund, and mutual cancellation prevent permanent lockup.
+- **Portable reputation:** ratings attach to agent addresses after successful settlement.
+- **Small trust surface:** there is no application backend or off-chain ledger.
+
+## V2 contract lifecycle
+
+```text
+Open -> Accepted -> Submitted -> Released
+Open -> Cancelled
+Accepted -> Refunded after a missed work deadline
+Accepted or Submitted -> Cancelled after both parties approve
+Submitted -> Released by requester, or finalized after review expires
+```
+
+V2 designates the agent at creation, starts the work clock at acceptance, records submission evidence, and gives the requester a bounded review period. This removes open claiming and unilateral post-acceptance refunds from the live V1 model.
+
+### Contract reference
+
+| Function | Caller | Result |
+|---|---|---|
+| `createBounty(agent, description, workDuration, reviewPeriod)` | Anyone, with BOT | Creates and funds a bounty for one designated agent. |
+| `acceptBounty(id)` | Designated agent | Accepts the task and starts the work deadline. |
+| `cancelOpenBounty(id)` | Requester | Cancels an unaccepted bounty and returns its principal. |
+| `submitWork(id, submission)` | Designated agent | Records delivery evidence and starts requester review. |
+| `release(id)` | Requester | Pays the agent after submission. |
+| `finalize(id)` | Anyone after review deadline | Pays the agent when requester review expires. |
+| `refundExpiredBounty(id)` | Requester after work deadline | Returns principal when accepted work was not submitted. |
+| `setCancellationApproval(id, approved)` | Requester or agent | Settles a cancellation only after both parties approve. |
+| `rateAgent(id, score)` | Requester after release | Records one score from 1 to 5 for the bounty. |
+| `getAgentRatingSummary(agent)` | Anyone, read only | Returns total score and rating count. |
+| `bounties(id)` | Anyone, read only | Returns the complete bounty record. |
+
+## Security evidence
+
+- Fund-moving paths update contract state before external value transfer.
+- OpenZeppelin `ReentrancyGuard` protects cancellation, refund, release, and finalization paths.
+- Role checks restrict acceptance, submission, release, refund, cancellation, and rating.
+- Exact work and review deadline boundaries are covered by tests.
+- Each released bounty can contribute at most one rating.
+- The suite includes a malicious reentrant receiver and verifies that no state or funds are lost.
+
+The contract is tested, not externally audited. Submission data proves that evidence was recorded before a deadline, not the subjective quality of the work.
 
 ## Architecture
 
-The frontend started life as a single static `index.html` - vanilla JavaScript, ethers.js v6 loaded via CDN, no build step, no framework - per the guidebook's own advice ("One HTML file is enough!"). It was migrated mid-build to a proper React app: **React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui**, with client-side routing via `react-router-dom` (`HashRouter`, so it still works unmodified on GitHub Pages) and a `@react-three/fiber`/`three` 3D vault component on the dashboard that animates in sync with each bounty's on-chain status. There's still no backend: the app talks directly to the contract via [ethers.js](https://ethers.org/) v6, and on-chain state *is* the UI's state - only the presentation layer changed.
-
-The Solidity side is a single contract, [`AgentEscrow.sol`](contracts/AgentEscrow.sol), built with [Hardhat](https://hardhat.org/) and OpenZeppelin's `ReentrancyGuard`.
-
-## Contract reference
-
-| Function | Who can call it | What it does |
-|---|---|---|
-| `createBounty(agent, description, workDuration, reviewPeriod)` (payable) | anyone | Opens and funds a bounty for one designated agent. |
-| `acceptBounty(id)` | designated agent | Accepts the work and starts its deadline. |
-| `cancelOpenBounty(id)` | requester, while `Open` | Cancels before acceptance and returns the escrow. |
-| `submitWork(id, submission)` | designated agent, before deadline | Stores a deliverable URL/hash and starts requester review. |
-| `refundExpiredBounty(id)` | requester, after missed work deadline | Returns escrow only when accepted work was not submitted on time. |
-| `release(id)` | requester, once `Submitted` | Pays the agent immediately. |
-| `finalize(id)` | anyone, after review deadline | Pays the agent when requester review expires without settlement. |
-| `setCancellationApproval(id, approved)` | requester or agent | Approves or revokes mutual cancellation; refund occurs only after both approvals. |
-| `rateAgent(id, score)` | the requester, once `Released`, once per bounty | Records a 1-5 rating against the agent's address. |
-| `getAgentRatingSummary(agent)` | anyone (view) | Returns `(totalScore, count)` for computing an agent's average. |
-
-Happy path: `Open → Accepted → Submitted → Released`. An open bounty may become `Cancelled`; missed accepted work becomes `Refunded`; mutual approval can produce `Cancelled` from `Accepted` or `Submitted`.
-
-Every fund-moving function follows checks-effects-interactions and uses OpenZeppelin's `nonReentrant`. The suite covers direct release, timeout finalization, deadline refund, open and mutual cancellation, authorization, exact deadline boundaries, reputation, and a malicious reentrant receiver.
-
-Submission evidence proves that a value was recorded before the deadline; it cannot prove subjective quality. High-value subjective work still benefits from an optional resolver in a future version.
+| Layer | Implementation |
+|---|---|
+| Contract | Solidity `0.8.24`, OpenZeppelin Contracts, Hardhat 3 |
+| Client | React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui |
+| Chain access | ethers.js 6, wallet provider, BOT Chain testnet RPC |
+| State | Contract reads and event history, with no backend database |
+| Hosting | Static GitHub Pages deployment with hash-based routing |
 
 ## Local development
 
 ```bash
 npm install
-npx hardhat test              # contract lifecycle, deadline, cancellation, security, and deployment-output tests
+npm test
 npx hardhat compile
+
 npm install --prefix frontend
 npm run test:policy --prefix frontend
 npm run lint --prefix frontend
 npm run build --prefix frontend
+npm run dev --prefix frontend
 ```
 
-To deploy your own instance to BOT Chain testnet:
+Deploy V2 to BOT Chain testnet:
 
 ```bash
-cp .env.example .env          # fill in a funded testnet wallet's PRIVATE_KEY
+cp .env.example .env
+# Add a funded testnet wallet PRIVATE_KEY to .env
 npx hardhat run scripts/deploy.js --network botchainTestnet
 npx hardhat verify --network botchainTestnet <deployed-address>
 ```
 
-The deploy script prints `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK`. Copy both into `frontend/.env.local` for local builds, or create GitHub repository variables with the same names before deploying Pages. The V2 frontend fails closed when either value is missing, preventing the V2 ABI from being used against the legacy V1 address.
+The deploy script prints copy-ready `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK` values. Put them in `frontend/.env.local`, then build the frontend. The app fails closed when either V2 value is missing, preventing the V2 ABI from being used against the legacy V1 address.
 
-BOT Chain testnet: chain ID `968`, RPC `https://rpc.bohr.life`, explorer `https://scan.bohr.life`, faucet `https://faucet.botchain.ai/basic`.
+BOT Chain testnet uses chain ID `968`, RPC `https://rpc.bohr.life`, and explorer `https://scan.bohr.life`.
 
-## Tech stack
+## Project documentation
 
-Solidity ^0.8.24, Hardhat 3, OpenZeppelin Contracts, ethers.js v6, React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui + react-router-dom + @react-three/fiber, GitHub Pages.
+- [Hackathon strategy and scored angle](HACKATHON.md)
+- [Product definition](PRODUCT.md)
+- [Design system](DESIGN.md)
+- [Build plans and implementation records](docs/hackathon-build/)
 
-## Project docs
-
-The full kickoff-to-build reasoning - rubric scoring, angle selection, spec, and the task-by-task build plan - lives in [`HACKATHON.md`](HACKATHON.md) and [`docs/hackathon-build/`](docs/hackathon-build/).
+If Agent Escrow is useful to your work, star the repository so more builders can find it.
