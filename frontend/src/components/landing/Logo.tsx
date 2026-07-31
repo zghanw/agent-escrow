@@ -1,11 +1,13 @@
-export const Logo = (props: React.SVGProps<SVGSVGElement>) => {
+import { cn } from "@/lib/utils";
+import logoMark from "@/assets/logo.png";
+
+export const Logo = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <svg viewBox="0 0 140 32" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <rect x="1" y="1" width="18" height="18" rx="2" stroke="white" strokeWidth="2" />
-      <path d="M6 16V8l4 5 4-5v8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="28" y="21" fill="white" fontFamily="Geist Mono Variable, monospace" fontSize="15" letterSpacing="0.5">
+    <div className={cn("inline-flex items-center gap-2.5", className)} {...props}>
+      <img src={logoMark} alt="" className="h-5 w-5 md:h-6 md:w-6 object-contain shrink-0" />
+      <span className="font-mono uppercase tracking-wide text-white text-[13px] md:text-[15px] leading-none whitespace-nowrap">
         AGENT ESCROW
-      </text>
-    </svg>
+      </span>
+    </div>
   );
 };

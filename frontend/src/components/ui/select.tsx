@@ -62,8 +62,18 @@ function SelectContent({
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  // Radix portals to document.body by default, which sits outside the
+  // page's .dashboard-theme/.landing-theme wrapper - CSS custom properties
+  // scoped to those classes (--popover, --primary, etc.) don't inherit
+  // there, so the content silently falls back to the root light-theme
+  // tokens. Portal inside the themed wrapper instead so it stays in scope.
+  const themeRoot =
+    typeof document !== "undefined"
+      ? (document.querySelector(".dashboard-theme, .landing-theme") as HTMLElement | null)
+      : null;
+
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={themeRoot ?? undefined}>
       <SelectPrimitive.Content
         data-slot="select-content"
         data-align-trigger={position === "item-aligned"}

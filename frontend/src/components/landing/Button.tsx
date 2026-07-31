@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-black border-[color:var(--landing-primary)] text-white [box-shadow:inset_0_0_54px_0px_var(--tw-shadow-color)] shadow-[color:var(--landing-primary)] hover:shadow-[color:var(--landing-primary)]/80",
+          "bg-black border-[color:var(--landing-primary)] text-white shadow-[0_8px_28px_-10px_var(--landing-primary)] hover:shadow-[0_10px_36px_-6px_var(--landing-primary)]",
       },
       size: {
         default: "h-16 px-6 text-base",
@@ -56,6 +56,7 @@ function LandingButton({
         style={{ "--h": px(hypotenuse), "--hh": px(hypotenuseHalf) } as React.CSSProperties}
         className="absolute w-[var(--h)] bottom-[var(--hh)] right-[var(--hh)] h-[2px] -rotate-45 translate-x-1/2 bg-[color:var(--landing-primary)]"
       />
+      <span className="landing-btn-pulse" aria-hidden="true" />
       {children}
     </Comp>
   );

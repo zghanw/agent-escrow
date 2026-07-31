@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-31T05-20-00.000Z",
+  "title": "Design System: Agent Escrow",
+  "extensions": {
+    "colorMeta": {
+      "gold-signal": { "role": "primary", "displayName": "Gold Signal", "canonical": "#ffc700", "tonalRamp": ["#332800", "#4d3c00", "#665000", "#997900", "#cca300", "#ffc700", "#ffd94d", "#ffecA3"] },
+      "void-black": { "role": "neutral", "displayName": "Void Black", "canonical": "#000000", "tonalRamp": ["#000000", "#0a0a0a", "#111111", "#1a1a1a", "#2a2a2a", "#404040", "#737373", "#a3a3a3"] },
+      "panel-charcoal": { "role": "neutral", "displayName": "Panel Charcoal", "canonical": "#111111", "tonalRamp": ["#000000", "#0a0a0a", "#111111", "#1a1a1a", "#2a2a2a", "#404040", "#595959", "#737373"] },
+      "border-terminal": { "role": "neutral", "displayName": "Border Terminal", "canonical": "#2a2a2a", "tonalRamp": ["#0a0a0a", "#111111", "#1a1a1a", "#2a2a2a", "#404040", "#595959", "#737373", "#a3a3a3"] },
+      "status-info": { "role": "info", "displayName": "Status Info Blue", "canonical": "#60a5fa", "tonalRamp": ["#0c1c3a", "#173458", "#22497a", "#2e60a0", "#3f7ecb", "#60a5fa", "#93c2fb", "#c6defd"] },
+      "status-good": { "role": "success", "displayName": "Status Good Green", "canonical": "#22c55e", "tonalRamp": ["#082714", "#0f4022", "#166534", "#1a8a42", "#1fab4f", "#22c55e", "#5edb8a", "#a6ecc1"] },
+      "status-warn": { "role": "warning", "displayName": "Status Warn Amber", "canonical": "#f59e0b", "tonalRamp": ["#3d2705", "#5c3a08", "#7d4f0a", "#a1670b", "#c9820a", "#f59e0b", "#f8bb52", "#fbd694"] },
+      "status-bad": { "role": "danger", "displayName": "Status Bad Red", "canonical": "#ef4444", "tonalRamp": ["#3a0a0a", "#5c1212", "#801a1a", "#a82323", "#cc2e2e", "#ef4444", "#f57a7a", "#fab0b0"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Sentient Display", "purpose": "The single largest headline on a page (landing hero, gate 'Sign in to continue'). Never used for body copy, labels, or buttons." },
+      "ui": { "displayName": "Geist Mono UI", "purpose": "Default voice for nav, buttons, panel headings, field labels, status badges, feed/log lines, tabs. Uppercase, wide tracking." },
+      "body": { "displayName": "Geist Sans Body", "purpose": "Landing hero subcopy and any long-form paragraph text only." },
+      "scale": { "displayName": "UI/Label micro-scale", "purpose": "0.62-0.9rem organic step scale for labels/captions/badges/timestamps at varying densities across landing, gate, and dashboard; see DESIGN.md Typography section for the full step list." }
+    },
+    "shadows": [
+      { "name": "landing-button-glow", "value": "0 8px 28px -10px #ffc700, hover: 0 10px 36px -6px #ffc700", "purpose": "Offset+blur resting/hover shadow on the primary landing button - revised from a zero-offset inset halo the design detector flagged as a generic AI-glow tell." },
+      { "name": "landing-button-pulse", "value": "1px solid #ffc700 ring, 0->0.7->0 opacity, scale 0.97->1.14, 1.1s, fires once ~0.6s after mount", "purpose": "The single authored 'verification flash' moment on the primary CTA, replacing the old always-on glow." },
+      { "name": "tracker-current-halo", "value": "0 0 0 3px rgba(96, 165, 250, 0.25)", "purpose": "Soft ring around the status tracker's current (in-progress) step." },
+      { "name": "pill-dot-glow", "value": "0 0 8px 2px #ffc700", "purpose": "Glow on the small status dot inside the landing pill badge." },
+      { "name": "vault-ambient-glow", "value": "radial-gradient(circle at 50% 40%, gold 8%, transparent 70%) behind the vault-frame canvas", "purpose": "Faint ambient warmth behind the dashboard Vault widget; not a box-shadow." }
+    ],
+    "motion": [
+      { "name": "hover-scale-liquid", "value": "scale(1.05) 300ms", "purpose": "LiquidButton hover growth, dashboard primary actions." },
+      { "name": "hover-scale-shadcn", "value": "scale(1.03) / active scale(0.97), 150ms ease-out", "purpose": "Base shadcn Button hover/active feedback." },
+      { "name": "color-transition", "value": "150-300ms ease-out", "purpose": "Default transition speed for color/border state changes across the system." },
+      { "name": "gate-check-in", "value": "opacity 0->1, scale 0.6->1, 0.3s cubic-bezier(0.16,1,0.3,1)", "purpose": "Wallet-gate ledger row resolving (checkmark appearing)." },
+      { "name": "gate-stamp-in", "value": "opacity 0->1, scale 0.5->1, rotate -18deg->0, 0.55s cubic-bezier(0.34,1.56,0.64,1)", "purpose": "Wallet-gate 'access granted' stamp - deliberately uses overshoot/bounce easing to read as a physical stamp settling onto paper; a reviewed exception to the system's default exponential easing, confirmed literal/domain-appropriate rather than decorative." },
+      { "name": "vault-status-ease", "value": "continuous per-frame lerp toward status-derived targets (shell scale/opacity, ring opacity, orb scale/position/color), ~0.35s time constant, 0.05s when prefers-reduced-motion", "purpose": "The dashboard Vault's entire animation system - a pure function of the selected bounty's on-chain status, never a timed/phased sequence, so it can't drift from the real contract state." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Landing Button",
+      "kind": "button",
+      "refersTo": "button-landing",
+      "description": "Primary CTA on landing and header ([Launch App] -> /connect). Cut corners, gold border, offset+blur resting shadow, a single verification-pulse ring on mount, diagonal accent lines at two clipped corners.",
+      "html": "<button class=\"ds-btn-landing\">[Launch App]</button>",
+      "css": ".ds-btn-landing { position: relative; height: 64px; padding: 0 24px; background: #000000; border: 1px solid #ffc700; color: #ffffff; font-family: 'Geist Mono Variable', monospace; font-size: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; box-shadow: 0 8px 28px -10px #ffc700; transition: box-shadow 300ms ease-out; clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px); } .ds-btn-landing:hover { box-shadow: 0 10px 36px -6px #ffc700; } .ds-btn-landing:focus-visible { outline: 2px solid #ffc700; outline-offset: 2px; }"
+    },
+    {
+      "name": "Liquid Button",
+      "kind": "button",
+      "refersTo": "button-primary-liquid",
+      "description": "Dashboard's primary action button (Create Bounty, Claim, Release, Refund, Rate). Transparent fill, gold text, glass-refraction hover treatment.",
+      "html": "<button class=\"ds-btn-liquid\">Create Bounty</button>",
+      "css": ".ds-btn-liquid { height: 36px; padding: 0 16px; background: transparent; border: none; border-radius: 4px; color: #ffc700; font-family: 'Geist Mono Variable', monospace; font-size: 0.85rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; box-shadow: 0 0 6px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.08), 0 0 12px rgba(255,255,255,0.15); transition: transform 300ms, box-shadow 300ms; } .ds-btn-liquid:hover { transform: scale(1.05); } .ds-btn-liquid:focus-visible { outline: 2px solid #ffc700; outline-offset: 2px; } .ds-btn-liquid:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Dashboard Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Standard dashboard container with gold bracket-corner marks and a mono uppercase heading. The same bracket language now also appears on the landing Verification Panel, the wallet-gate Access Ledger, and the dashboard Vault frame.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-panel-heading\">Create a bounty</div><div>Panel content goes here.</div></div>",
+      "css": ".ds-panel { position: relative; background: #111111; color: #ffffff; border: 1px solid #2a2a2a; border-radius: 4px; padding: 20px 22px; } .ds-panel::before, .ds-panel::after { content: ''; position: absolute; width: 10px; height: 10px; pointer-events: none; } .ds-panel::before { top: -1px; left: -1px; border-top: 1px solid #ffc700; border-left: 1px solid #ffc700; } .ds-panel::after { bottom: -1px; right: -1px; border-bottom: 1px solid #ffc700; border-right: 1px solid #ffc700; } .ds-panel-heading { font-family: 'Geist Mono Variable', monospace; font-size: 0.8rem; font-weight: 500; margin: 0 0 14px; color: #a3a3a3; text-transform: uppercase; letter-spacing: 0.06em; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "Fixed four-state pill (Open/Claimed/Released/Refunded) mapped to semantic colors, used on bounty rows and detail panels.",
+      "html": "<span class=\"ds-badge ds-badge-open\">Open</span>",
+      "css": ".ds-badge { display: inline-block; font-family: 'Geist Mono Variable', monospace; padding: 2px 9px; border-radius: 2px; font-size: 0.72rem; font-weight: 500; border: 1px solid currentColor; } .ds-badge-open { background: rgba(245, 158, 11, 0.12); color: #f59e0b; } .ds-badge-claimed { background: rgba(96, 165, 250, 0.12); color: #60a5fa; } .ds-badge-released { background: rgba(34, 197, 94, 0.12); color: #22c55e; } .ds-badge-refunded { background: rgba(163, 163, 163, 0.12); color: #a3a3a3; }"
+    },
+    {
+      "name": "Landing Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Status/context badge on the landing hero (e.g. \"BOT CHAIN TESTNET\") - cut corners, backdrop blur, glowing gold dot.",
+      "html": "<div class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>BOT CHAIN TESTNET</div>",
+      "css": ".ds-pill { position: relative; display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; background: rgba(38, 38, 38, 0.5); backdrop-filter: blur(4px); border: 1px solid #424242; color: rgba(255,255,255,0.5); font-family: 'Geist Mono Variable', monospace; font-size: 0.875rem; font-weight: 500; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); } .ds-pill-dot { display: inline-block; width: 10px; height: 10px; border-radius: 9999px; background: #ffc700; margin-right: 8px; box-shadow: 0 0 8px 2px #ffc700; }"
+    },
+    {
+      "name": "Verification Panel",
+      "kind": "card",
+      "refersTo": "verify-panel",
+      "description": "Landing-hero readout proving the product's claims (real contract address linked to explorer, verified badge, live bounty count over read-only RPC) instead of asserting them. Bracket corners, semi-transparent dark ground.",
+      "html": "<div class=\"ds-verify-panel\"><span class=\"ds-verify-bracket ds-verify-bracket-tl\"></span><span class=\"ds-verify-bracket ds-verify-bracket-br\"></span><div class=\"ds-verify-row\"><span>Contract</span><a href=\"#\">0x956E...5Cc1</a></div></div>",
+      "css": ".ds-verify-panel { position: relative; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); border: 1px solid #424242; padding: 14px 18px; font-family: 'Geist Mono Variable', monospace; font-size: 0.8rem; } .ds-verify-bracket { position: absolute; width: 12px; height: 12px; } .ds-verify-bracket-tl { top: -1px; left: -1px; border-top: 1px solid #ffc700; border-left: 1px solid #ffc700; } .ds-verify-bracket-br { bottom: -1px; right: -1px; border-bottom: 1px solid #ffc700; border-right: 1px solid #ffc700; } .ds-verify-row { display: flex; justify-content: space-between; gap: 12px; }"
+    },
+    {
+      "name": "Dashboard Tabs",
+      "kind": "nav",
+      "refersTo": "dashboard-tabs-trigger",
+      "description": "Underline-style tab bar splitting the dashboard into Bounties/Create/Activity. Mono uppercase, 1px bottom rule, gold underline + gold text on the active tab; introduced in the stage-3 onboarding restructure to replace a single stacked 7-panel page.",
+      "html": "<div class=\"ds-tabs-list\"><button class=\"ds-tabs-trigger ds-tabs-trigger-active\">Bounties</button><button class=\"ds-tabs-trigger\">Create</button><button class=\"ds-tabs-trigger\">Activity</button></div>",
+      "css": ".ds-tabs-list { display: flex; gap: 4px; border-bottom: 1px solid #2a2a2a; } .ds-tabs-trigger { font-family: 'Geist Mono Variable', monospace; font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #a3a3a3; background: none; border: none; cursor: pointer; padding: 0.7rem 0.9rem; margin-bottom: -1px; border-bottom: 2px solid transparent; transition: color 150ms ease-out, border-color 150ms ease-out; } .ds-tabs-trigger:hover { color: #ffffff; } .ds-tabs-trigger-active { color: #ffc700; border-bottom-color: #ffc700; }"
+    },
+    {
+      "name": "Status Banner",
+      "kind": "custom",
+      "refersTo": "banner",
+      "description": "Wallet/network status strip above the dashboard tabs. State signaled by a small colored dot before the message plus a subtly state-tinted 1px border - revised from a 3px colored border-left, which the design detector correctly flagged as a generic AI-UI tell (\"side-tab\").",
+      "html": "<div class=\"ds-banner ds-banner-good\"><span class=\"ds-banner-msg\"><span class=\"ds-banner-dot\"></span>Connected: 0x1234...7890</span></div>",
+      "css": ".ds-banner { position: relative; background: #111111; color: #ffffff; border: 1px solid #2a2a2a; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; } .ds-banner-msg { display: inline-flex; align-items: center; gap: 0.5rem; } .ds-banner-dot { width: 7px; height: 7px; border-radius: 9999px; background: #a3a3a3; } .ds-banner-good { border-color: color-mix(in oklch, #22c55e 40%, #2a2a2a); } .ds-banner-good .ds-banner-dot { background: #22c55e; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Trading Terminal",
+    "overview": "Agent Escrow reads as a monitored, high-stakes instrument across all three surfaces - Persuade (landing), the wallet-connect gate, and Operate (dashboard) - closer to a trading floor or mission-control console than a consumer crypto app. Void-black surfaces, a single gold signal accent, and monospace type carry every screen. The landing hero now proves its claims with a live Verification Panel (real contract address, verified badge, a live on-chain bounty count) instead of resting on mood alone; the wallet gate frames connecting a wallet as a 'Signature Ritual' - a ledger the visitor signs into, ending in a notary-stamp moment; the dashboard splits what was a single stacked seven-panel page into three tabs (Bounties/Create/Activity) fronted by a live 3D Vault that acts out the selected bounty's real on-chain status (sealed when Open, a scanning ring while Claimed, opening and releasing a glowing orb on Released, sealing red on Refunded) rather than illustrating it abstractly.\n\nThis is no longer a before-snapshot. The system was deliberately amplified, not replaced: every new surface (gate, tabs, Vault) inherits the same tokens, the same bracket-corner language, the same mono-first type system, and the same restrained gold-only palette established in the original build - proven out across a full critique-driven landing redesign, a new wallet-gate surface, an onboarding restructure, and a 'no limits' creative pass, with each stage's detector findings reviewed and either fixed (the zero-offset button glow, the 3px side-bar banners) or deliberately kept (the gate stamp's overshoot easing, as literal stamp physics).",
+    "keyCharacteristics": [
+      "One accent color (gold, #ffc700) against near-total black-and-white; no secondary or tertiary hue in use, even across three new surfaces.",
+      "Corners are either cut (clip-path polygon, landing/button surfaces) or bracketed (gold L-shaped corner marks) - now shared across the dashboard panel, landing verification panel, gate ledger, and dashboard vault frame.",
+      "Monospace is the dominant UI voice at a real organic micro-scale (0.62-0.9rem); a light-weight serif-adjacent display face (Sentient) is reserved for large hero/page-title moments only.",
+      "Depth comes from offset+blur accent glow (never zero-offset) and bracket marks, not shadow elevation - flat at rest, with exactly one authored motion moment per surface rather than ambient decoration.",
+      "The dashboard is deliberately narrow (max 640px), now organized into three tabs instead of one long stack, with wallet/network status and the tx log as persistent chrome rather than tabs themselves.",
+      "State is proven, not decorated: the landing panel reads the real chain, the dashboard Vault is a pure function of real bounty status - nothing animates a claim the product can't back."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Gold is the only hue in the system. It never gets a second saturated color to share the stage with; new UI reaches for gray-scale or the fixed semantic status set before introducing another accent.", "section": "colors" },
+      { "name": "The Mono-First Rule", "body": "Default to Geist Mono for any new interface text. Sentient is earned only by the single largest headline on a page - it is never used for body copy, labels, or buttons.", "section": "typography" },
+      { "name": "The Cut-or-Bracket Rule", "body": "A primary interactive surface earns a signature corner treatment (clip-path cut or bracket marks) rather than a plain rounded rectangle. Secondary/utility elements (inputs, tags, generic shadcn buttons) may use plain border-radius.", "section": "shapes" },
+      { "name": "The Offset Glow Rule", "body": "Any glow shadow carries an offset and a blur radius (e.g. 0 8px 28px -10px); a zero-offset colored halo reads as decoration, not craft, and is the specific pattern this system's detector flags as a generic AI-design tell.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep gold (#ffc700) as the system's only accent color; reach for the fixed semantic status set (info/good/warn/bad) before introducing a second brand hue.",
+      "Do default new UI text to Geist Mono, uppercase, wide tracking; reserve Sentient strictly for the single largest headline on a page.",
+      "Do give primary interactive surfaces a signature corner treatment (clip-path cut or bracket marks) rather than a plain rounded rectangle.",
+      "Do keep the dashboard a narrow, single-column console (640px cap), organized into tabs with wallet/network/tx-log status as persistent chrome, not additional tabs.",
+      "Do let new UI prove product claims with real data (contract reads, live status) before reaching for decorative motion or copy that only asserts them."
+    ],
+    "donts": [
+      "Don't introduce box-shadow-based elevation layering or zero-offset glow halos; this system signals depth with offset+blur accent glow and bracket marks, not shadow stacks or decorative halos.",
+      "Don't add a colored border-left/border-right thicker than 1px on any card, banner, or callout - use a status dot plus a subtly tinted 1px border instead.",
+      "Don't duplicate the button implementations (LandingButton, LiquidButton, base Button) without reason - each is scoped to a specific surface; a fourth ad hoc button style is a regression, not a new pattern.",
+      "Don't animate a state the contract doesn't actually report - the Vault, trackers, and status badges are all pure functions of real on-chain data, never a timed or optimistic guess."
+    ]
+  }
+}

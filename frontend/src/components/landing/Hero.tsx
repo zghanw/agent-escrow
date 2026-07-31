@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { GL } from "./gl";
 import { Pill } from "./Pill";
 import { LandingButton } from "./Button";
+import { VerificationPanel } from "./VerificationPanel";
+import { FlowPreview } from "./FlowPreview";
 
 export function Hero() {
   const [hovering, setHovering] = useState(false);
@@ -10,7 +12,7 @@ export function Hero() {
     <div className="flex flex-col h-svh justify-between">
       <GL hovering={hovering} />
 
-      <div className="pb-16 mt-auto text-center relative">
+      <div className="pb-16 mt-auto text-center relative px-5 sm:px-6">
         <Pill className="mb-6">BOT CHAIN TESTNET</Pill>
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-sentient">
           Trust-minimized <br />
@@ -20,16 +22,20 @@ export function Hero() {
           Post a BOT bounty, an agent claims it and delivers, you release payment on-chain. No middleman, no "trust me" IOU.
         </p>
 
-        <Link className="contents max-sm:hidden" to="/app">
-          <LandingButton className="mt-14" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+        <VerificationPanel />
+        <FlowPreview />
+
+        <Link className="contents max-sm:hidden" to="/connect">
+          <LandingButton className="mt-10" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             [Launch App]
           </LandingButton>
         </Link>
-        <Link className="contents sm:hidden" to="/app">
-          <LandingButton size="sm" className="mt-14" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+        <Link className="contents sm:hidden" to="/connect">
+          <LandingButton size="sm" className="mt-10" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             [Launch App]
           </LandingButton>
         </Link>
+        <p className="font-mono text-[0.7rem] text-white/35 mt-3 uppercase tracking-wide">Needs MetaMask &middot; BOT Chain testnet</p>
       </div>
     </div>
   );
