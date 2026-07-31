@@ -23,3 +23,6 @@ Thumbs.db
 # Impeccable runtime state (ephemeral - critique snapshots and design.json are kept)
 .impeccable/live/
 .impeccable/hook.cache.json
+
+# Playwright MCP session output (console logs, page snapshots)
+.playwright-mcp/
