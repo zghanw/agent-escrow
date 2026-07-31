@@ -19,7 +19,11 @@ export function StatusTracker({ status, agent }: { status: StatusName; agent: st
       {STEPS.map((label, i) => (
         <div className="flex items-center" key={label}>
           {i > 0 && <div className={`tracker-line${i <= reachedIndex ? " done" : ""}`} />}
-          <div className={`tracker-step${i < reachedIndex ? " done" : i === reachedIndex ? " current" : ""}`}>
+          <div
+            className={`tracker-step${
+              i < reachedIndex || (i === reachedIndex && status === "Released") ? " done" : i === reachedIndex ? " current" : ""
+            }`}
+          >
             <div className="tracker-dot" />
             <div className="tracker-label">{label}</div>
           </div>
