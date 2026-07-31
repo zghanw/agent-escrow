@@ -19,7 +19,7 @@ export function Hero() {
           <i className="font-light">agent escrow</i>
         </h1>
         <p className="font-mono text-sm sm:text-base text-white/60 text-balance mt-8 max-w-[440px] mx-auto">
-          Post a BOT bounty, an agent claims it and delivers, you release payment on-chain. No middleman, no "trust me" IOU.
+          Fund a designated agent, verify submitted work, and release payment on-chain. Symmetric deadlines protect both sides.
         </p>
 
         <VerificationPanel />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { Panel } from "./Panel";
 import { StatusTracker } from "./StatusTracker";
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { availableBountyActions } from "@/lib/escrowPolicy";
 import type { BountyDetail } from "@/hooks/useEscrow";
 
 const RATING_OPTIONS = [
@@ -21,6 +22,15 @@ const RATING_OPTIONS = [
   { value: "1", label: "1 - bad" },
 ];
 
+function formatDeadline(timestamp: number, fallback: string): string {
+  return timestamp > 0 ? new Date(timestamp * 1000).toLocaleString() : fallback;
+}
+
+function formatHours(seconds: number): string {
+  const hours = seconds / 3600;
+  return `${hours.toLocaleString(undefined, { maximumFractionDigits: 2 })} hour${hours === 1 ? "" : "s"}`;
+}
+
 export function BountyDetailPanel({
   signerAddress,
   canInteract,
@@ -29,9 +39,13 @@ export function BountyDetailPanel({
   detail,
   busy,
   onLoad,
-  onClaim,
+  onAccept,
+  onCancelOpen,
+  onSubmit,
+  onRefundExpired,
   onRelease,
-  onRefund,
+  onFinalize,
+  onSetCancellationApproval,
   onRate,
 }: {
   signerAddress: string | null;
@@ -41,16 +55,30 @@ export function BountyDetailPanel({
   detail: BountyDetail | null;
   busy: boolean;
   onLoad: (id: string) => void;
-  onClaim: (id: bigint) => void;
+  onAccept: (id: bigint) => void;
+  onCancelOpen: (id: bigint) => void;
+  onSubmit: (id: bigint, submission: string) => void;
+  onRefundExpired: (id: bigint) => void;
   onRelease: (id: bigint) => void;
-  onRefund: (id: bigint) => void;
+  onFinalize: (id: bigint) => void;
+  onSetCancellationApproval: (id: bigint, approved: boolean) => void;
   onRate: (id: bigint, score: number) => void;
 }) {
   const [idInput, setIdInput] = useState("");
+  const [submission, setSubmission] = useState("");
   const [rating, setRating] = useState("5");
+  const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowSeconds(Math.floor(Date.now() / 1000)), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const isRequester =
     Boolean(signerAddress) && Boolean(detail) && signerAddress!.toLowerCase() === detail!.requester.toLowerCase();
+  const actions = new Set(
+    detail && canInteract ? availableBountyActions(detail, signerAddress, nowSeconds) : []
+  );
 
   return (
     <Panel heading="View a bounty">
@@ -66,7 +94,7 @@ export function BountyDetailPanel({
           step="1"
           placeholder="Bounty ID"
           value={idInput}
-          onChange={(e) => setIdInput(e.target.value)}
+          onChange={(event) => setIdInput(event.target.value)}
         />
         <LiquidButton variant="outline" disabled={!canInteract} onClick={() => onLoad(idInput)}>
           Load
@@ -80,7 +108,11 @@ export function BountyDetailPanel({
             <span className={`status-badge status-${detail.status}`}>{detail.status}</span>
           </dd>
           <dd className="mt-2">
-            <StatusTracker status={detail.status} agent={detail.agent} />
+            <StatusTracker
+              status={detail.status}
+              workDeadline={detail.workDeadline}
+              reviewDeadline={detail.reviewDeadline}
+            />
           </dd>
 
           <dt className="field-label">Description</dt>
@@ -90,10 +122,31 @@ export function BountyDetailPanel({
           <dd className="mono">{ethers.formatEther(detail.amount)} BOT</dd>
 
           <dt className="field-label">Requester</dt>
-          <dd className="mono">{detail.requester}</dd>
+          <dd className="mono break-all">{detail.requester}</dd>
 
-          <dt className="field-label">Agent</dt>
-          <dd className="mono">{detail.agent === ethers.ZeroAddress ? "(none yet)" : detail.agent}</dd>
+          <dt className="field-label">Designated agent</dt>
+          <dd className="mono break-all">{detail.agent}</dd>
+
+          <dt className="field-label">Work window</dt>
+          <dd>{formatHours(detail.workDuration)}</dd>
+
+          <dt className="field-label">Work deadline</dt>
+          <dd>{formatDeadline(detail.workDeadline, "Starts when the agent accepts")}</dd>
+
+          <dt className="field-label">Review window</dt>
+          <dd>{formatHours(detail.reviewPeriod)}</dd>
+
+          <dt className="field-label">Review deadline</dt>
+          <dd>{formatDeadline(detail.reviewDeadline, "Starts when work is submitted")}</dd>
+
+          <dt className="field-label">Submission evidence</dt>
+          <dd className="mono break-all">{detail.submission || "(not submitted)"}</dd>
+
+          <dt className="field-label">Cancellation approvals</dt>
+          <dd>
+            Requester: {detail.requesterCancellationApproved ? "approved" : "not approved"}; agent:{" "}
+            {detail.agentCancellationApproved ? "approved" : "not approved"}
+          </dd>
 
           <dt className="field-label">Agent rating</dt>
           <dd>{detail.agentRatingText}</dd>
@@ -107,27 +160,70 @@ export function BountyDetailPanel({
         </dl>
       )}
 
+      {detail && actions.has("submit") && (
+        <div className="mt-4">
+          <label className="field-label" htmlFor="submissionInput">
+            Deliverable URL or content hash
+          </label>
+          <div className="flex gap-2.5">
+            <Input
+              id="submissionInput"
+              type="text"
+              placeholder="ipfs://… or https://…"
+              value={submission}
+              onChange={(event) => setSubmission(event.target.value)}
+            />
+            <LiquidButton disabled={busy} onClick={() => onSubmit(detail.id, submission)}>
+              Submit Work
+            </LiquidButton>
+          </div>
+        </div>
+      )}
+
       {detail && (
         <div className="flex gap-2 mt-3.5 flex-wrap">
-          {detail.status === "Open" && !isRequester && (
-            <LiquidButton disabled={busy} onClick={() => onClaim(detail.id)}>
-              Claim Bounty
+          {actions.has("accept") && (
+            <LiquidButton disabled={busy} onClick={() => onAccept(detail.id)}>
+              Accept Bounty
             </LiquidButton>
           )}
-          {detail.status === "Open" && isRequester && (
-            <LiquidButton variant="outline" disabled={busy} onClick={() => onRefund(detail.id)}>
-              Cancel & Refund Myself
+          {actions.has("cancelOpen") && (
+            <LiquidButton variant="destructive" disabled={busy} onClick={() => onCancelOpen(detail.id)}>
+              Cancel Open Bounty
             </LiquidButton>
           )}
-          {detail.status === "Claimed" && isRequester && (
-            <>
-              <LiquidButton disabled={busy} onClick={() => onRelease(detail.id)}>
-                Release Payment
-              </LiquidButton>
-              <LiquidButton variant="destructive" disabled={busy} onClick={() => onRefund(detail.id)}>
-                Refund Instead
-              </LiquidButton>
-            </>
+          {actions.has("refundExpired") && (
+            <LiquidButton variant="destructive" disabled={busy} onClick={() => onRefundExpired(detail.id)}>
+              Refund Missed Deadline
+            </LiquidButton>
+          )}
+          {actions.has("release") && (
+            <LiquidButton disabled={busy} onClick={() => onRelease(detail.id)}>
+              Release Payment
+            </LiquidButton>
+          )}
+          {actions.has("finalize") && (
+            <LiquidButton disabled={busy} onClick={() => onFinalize(detail.id)}>
+              Finalize After Review
+            </LiquidButton>
+          )}
+          {actions.has("approveCancellation") && (
+            <LiquidButton
+              variant="outline"
+              disabled={busy}
+              onClick={() => onSetCancellationApproval(detail.id, true)}
+            >
+              Approve Mutual Cancellation
+            </LiquidButton>
+          )}
+          {actions.has("revokeCancellation") && (
+            <LiquidButton
+              variant="outline"
+              disabled={busy}
+              onClick={() => onSetCancellationApproval(detail.id, false)}
+            >
+              Revoke Cancellation Approval
+            </LiquidButton>
           )}
         </div>
       )}
@@ -143,9 +239,9 @@ export function BountyDetailPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {RATING_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                {RATING_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

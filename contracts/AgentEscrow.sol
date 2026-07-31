@@ -6,9 +6,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract AgentEscrow is ReentrancyGuard {
     enum Status {
         Open,
-        Claimed,
+        Accepted,
+        Submitted,
         Released,
-        Refunded
+        Refunded,
+        Cancelled
     }
 
     struct Bounty {
@@ -16,8 +18,15 @@ contract AgentEscrow is ReentrancyGuard {
         address agent;
         uint256 amount;
         string description;
+        string submission;
         Status status;
         uint256 createdAt;
+        uint256 workDeadline;
+        uint256 reviewDeadline;
+        uint256 workDuration;
+        uint256 reviewPeriod;
+        bool requesterCancellationApproved;
+        bool agentCancellationApproved;
     }
 
     struct Rating {
@@ -27,50 +36,161 @@ contract AgentEscrow is ReentrancyGuard {
         uint256 ratedAt;
     }
 
-    mapping(uint256 => Bounty) public bounties;
+    mapping(uint256 => Bounty) private _bounties;
     uint256 public bountyCount;
 
     mapping(address => Rating[]) public agentRatings;
     mapping(uint256 => bool) public bountyRated;
 
-    event BountyCreated(uint256 indexed id, address indexed requester, uint256 amount, string description);
-    event BountyClaimed(uint256 indexed id, address indexed agent);
+    event BountyCreated(
+        uint256 indexed id,
+        address indexed requester,
+        address indexed agent,
+        uint256 amount,
+        string description,
+        uint256 workDuration,
+        uint256 reviewPeriod
+    );
+    event BountyAccepted(uint256 indexed id, address indexed agent, uint256 workDeadline);
+    event WorkSubmitted(uint256 indexed id, address indexed agent, string submission, uint256 reviewDeadline);
     event BountyReleased(uint256 indexed id, address indexed agent, uint256 amount);
     event BountyRefunded(uint256 indexed id, address indexed requester, uint256 amount);
+    event BountyCancelled(uint256 indexed id, address indexed requester, uint256 amount, bool mutual);
+    event CancellationApprovalUpdated(uint256 indexed id, address indexed party, bool approved);
     event AgentRated(uint256 indexed bountyId, address indexed agent, address indexed requester, uint8 score);
 
-    function createBounty(string calldata description) external payable returns (uint256 id) {
+    modifier bountyExists(uint256 id) {
+        require(id < bountyCount, "Bounty does not exist");
+        _;
+    }
+
+    function bounties(uint256 id) external view bountyExists(id) returns (Bounty memory) {
+        return _bounties[id];
+    }
+
+    function createBounty(
+        address designatedAgent,
+        string calldata description,
+        uint256 workDuration,
+        uint256 reviewPeriod
+    ) external payable returns (uint256 id) {
         require(msg.value > 0, "Bounty must include payment");
+        require(designatedAgent != address(0), "Agent is required");
+        require(designatedAgent != msg.sender, "Requester cannot be agent");
+        require(workDuration > 0, "Work duration is required");
+        require(reviewPeriod > 0, "Review period is required");
 
         id = bountyCount++;
-        bounties[id] = Bounty({
+        _bounties[id] = Bounty({
             requester: msg.sender,
-            agent: address(0),
+            agent: designatedAgent,
             amount: msg.value,
             description: description,
+            submission: "",
             status: Status.Open,
-            createdAt: block.timestamp
+            createdAt: block.timestamp,
+            workDeadline: 0,
+            reviewDeadline: 0,
+            workDuration: workDuration,
+            reviewPeriod: reviewPeriod,
+            requesterCancellationApproved: false,
+            agentCancellationApproved: false
         });
 
-        emit BountyCreated(id, msg.sender, msg.value, description);
+        emit BountyCreated(
+            id,
+            msg.sender,
+            designatedAgent,
+            msg.value,
+            description,
+            workDuration,
+            reviewPeriod
+        );
     }
 
-    function claimBounty(uint256 id) external {
-        Bounty storage bounty = bounties[id];
+    function acceptBounty(uint256 id) external bountyExists(id) {
+        Bounty storage bounty = _bounties[id];
         require(bounty.status == Status.Open, "Bounty not open");
-        require(msg.sender != bounty.requester, "Requester cannot claim own bounty");
+        require(msg.sender == bounty.agent, "Only designated agent can accept");
 
-        bounty.agent = msg.sender;
-        bounty.status = Status.Claimed;
+        bounty.status = Status.Accepted;
+        bounty.workDeadline = block.timestamp + bounty.workDuration;
 
-        emit BountyClaimed(id, msg.sender);
+        emit BountyAccepted(id, msg.sender, bounty.workDeadline);
     }
 
-    function release(uint256 id) external nonReentrant {
-        Bounty storage bounty = bounties[id];
-        require(msg.sender == bounty.requester, "Only requester can release");
-        require(bounty.status == Status.Claimed, "Bounty not claimed");
+    function cancelOpenBounty(uint256 id) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
+        require(msg.sender == bounty.requester, "Only requester can cancel");
+        require(bounty.status == Status.Open, "Bounty not open");
 
+        uint256 amount = bounty.amount;
+        bounty.status = Status.Cancelled;
+
+        (bool success, ) = bounty.requester.call{value: amount}("");
+        require(success, "Cancellation transfer failed");
+
+        emit BountyCancelled(id, bounty.requester, amount, false);
+    }
+
+    function submitWork(uint256 id, string calldata submission) external bountyExists(id) {
+        Bounty storage bounty = _bounties[id];
+        require(msg.sender == bounty.agent, "Only designated agent can submit");
+        require(bounty.status == Status.Accepted, "Bounty not accepted");
+        require(block.timestamp < bounty.workDeadline, "Work deadline passed");
+        require(bytes(submission).length > 0, "Submission is required");
+
+        bounty.submission = submission;
+        bounty.status = Status.Submitted;
+        bounty.reviewDeadline = block.timestamp + bounty.reviewPeriod;
+
+        emit WorkSubmitted(id, msg.sender, submission, bounty.reviewDeadline);
+    }
+
+    function release(uint256 id) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
+        require(msg.sender == bounty.requester, "Only requester can release");
+        require(bounty.status == Status.Submitted, "Bounty not submitted");
+        _release(id, bounty);
+    }
+
+    function finalize(uint256 id) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
+        require(bounty.status == Status.Submitted, "Bounty not submitted");
+        require(block.timestamp >= bounty.reviewDeadline, "Review deadline not reached");
+
+        _release(id, bounty);
+    }
+
+    function setCancellationApproval(uint256 id, bool approved) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
+        require(
+            bounty.status == Status.Accepted || bounty.status == Status.Submitted,
+            "Bounty not active"
+        );
+
+        if (msg.sender == bounty.requester) {
+            bounty.requesterCancellationApproved = approved;
+        } else if (msg.sender == bounty.agent) {
+            bounty.agentCancellationApproved = approved;
+        } else {
+            revert("Only bounty parties can approve cancellation");
+        }
+
+        emit CancellationApprovalUpdated(id, msg.sender, approved);
+
+        if (bounty.requesterCancellationApproved && bounty.agentCancellationApproved) {
+            uint256 amount = bounty.amount;
+            bounty.status = Status.Cancelled;
+
+            (bool success, ) = bounty.requester.call{value: amount}("");
+            require(success, "Cancellation transfer failed");
+
+            emit BountyCancelled(id, bounty.requester, amount, true);
+        }
+    }
+
+    function _release(uint256 id, Bounty storage bounty) private {
         uint256 amount = bounty.amount;
         address agent = bounty.agent;
         bounty.status = Status.Released;
@@ -81,13 +201,11 @@ contract AgentEscrow is ReentrancyGuard {
         emit BountyReleased(id, agent, amount);
     }
 
-    function refund(uint256 id) external nonReentrant {
-        Bounty storage bounty = bounties[id];
+    function refundExpiredBounty(uint256 id) external bountyExists(id) nonReentrant {
+        Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.requester, "Only requester can refund");
-        require(
-            bounty.status == Status.Open || bounty.status == Status.Claimed,
-            "Cannot refund in current state"
-        );
+        require(bounty.status == Status.Accepted, "Bounty not accepted");
+        require(block.timestamp >= bounty.workDeadline, "Work deadline not reached");
 
         uint256 amount = bounty.amount;
         bounty.status = Status.Refunded;
@@ -99,7 +217,7 @@ contract AgentEscrow is ReentrancyGuard {
     }
 
     function rateAgent(uint256 id, uint8 score) external {
-        Bounty storage bounty = bounties[id];
+        Bounty storage bounty = _bounties[id];
         require(msg.sender == bounty.requester, "Only requester can rate");
         require(bounty.status == Status.Released, "Bounty not released");
         require(!bountyRated[id], "Bounty already rated");
