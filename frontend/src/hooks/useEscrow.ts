@@ -25,6 +25,11 @@ declare global {
 const RECENT_BOUNTIES_LIMIT = 10;
 const FEED_LIMIT = 25;
 const MAX_LOG_RANGE = 4500; // stay under this RPC's undocumented 5000-block eth_getLogs cap
+const REFRESH_HINT = "Try refreshing the website.";
+
+function withRefreshHint(message: string, error?: any) {
+  return error?.code === 4001 ? message : `${message} ${REFRESH_HINT}`;
+}
 
 export interface FeedEntry {
   id: number;
@@ -408,11 +413,14 @@ export function useEscrow() {
             params: [BOTCHAIN_TESTNET],
           });
         } catch (addErr: any) {
-          writeLog(`Could not add BOT Chain: ${addErr.shortMessage || addErr.message}`, "err");
+          writeLog(withRefreshHint(`Could not add BOT Chain: ${addErr.shortMessage || addErr.message}`, addErr), "err");
           return;
         }
       } else {
-        writeLog(`Could not switch network: ${switchErr.shortMessage || switchErr.message}`, "err");
+        writeLog(
+          withRefreshHint(`Could not switch network: ${switchErr.shortMessage || switchErr.message}`, switchErr),
+          "err"
+        );
         return;
       }
     }
@@ -469,7 +477,7 @@ export function useEscrow() {
         // completed a transaction wants its "View transaction" link to
         // survive this refresh, not vanish.
       } catch (err: any) {
-        writeLog(`Load failed: ${err.shortMessage || err.message}`, "err");
+        writeLog(withRefreshHint(`Load failed: ${err.shortMessage || err.message}`), "err");
       }
     },
     [describeAgentRating, writeLog]
@@ -487,7 +495,7 @@ export function useEscrow() {
         if (bountyDetail) await loadBounty(bountyDetail.id);
         await refreshRecentBounties();
       } catch (err: any) {
-        writeLog(`Transaction failed: ${describeTxError(err)}`, "err");
+        writeLog(withRefreshHint(`Transaction failed: ${describeTxError(err)}`, err), "err");
       } finally {
         setBusy(false);
       }
@@ -542,7 +550,7 @@ export function useEscrow() {
         if (newId !== null) await loadBounty(newId);
         return true;
       } catch (err: any) {
-        writeLog(`Create failed: ${describeTxError(err)}`, "err");
+        writeLog(withRefreshHint(`Create failed: ${describeTxError(err)}`, err), "err");
         return false;
       } finally {
         setBusy(false);
