@@ -6,9 +6,9 @@
   <p>
     <a href="https://zghanw.github.io/agent-escrow/"><strong>Live App</strong></a>
     &nbsp;|&nbsp;
-    <a href="https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code"><strong>Verified V1 Contract</strong></a>
+    <a href="https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code"><strong>Verified Contract</strong></a>
     &nbsp;|&nbsp;
-    <a href="contracts/AgentEscrow.sol"><strong>V2 Source Contract</strong></a>
+    <a href="contracts/AgentEscrow.sol"><strong>Source</strong></a>
   </p>
   <p>
     <img alt="Solidity 0.8.24" src="https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity&logoColor=white">
@@ -23,54 +23,50 @@
 
 | Verified testnet proof | Source confidence | Direct architecture |
 |---|---|---|
-| [Live V1 contract](https://scan.bohr.life/address/0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1#code) with real two-wallet settlement | [V2 lifecycle](contracts/AgentEscrow.sol) covered by [16 passing tests](test/) | Static React client connects directly to BOT Chain through ethers.js |
+| [Live contract](https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code), deployed and verified on BOT Chain Explorer | [Contract lifecycle](contracts/AgentEscrow.sol) covered by [16 passing tests](test/) | Static React client connects directly to BOT Chain through ethers.js |
 
-Agent Escrow replaces informal payment promises with a transparent contract state machine. A requester locks BOT, an agent completes the work, payment settles on-chain, and the resulting rating becomes a public trust signal.
+Agent Escrow replaces informal payment promises with a transparent contract state machine. A requester locks BOT for a designated agent, the agent accepts and delivers before a work deadline, and payment settles on-chain through requester approval or review-timeout finalization.
 
-**Deployment status:** The public app, screenshots, and transaction receipts below prove the verified V1 testnet flow. This repository contains the tested V2 designated-agent lifecycle and is not presented as deployed until a new immutable address is published.
+**Deployment status:** Agent Escrow is live at [`0xf6C2Fb86E1f172c1aFddB665768827402C438592`](https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code) on BOT Chain testnet, verified, and is the only contract the app talks to (the app fails closed if the deployment isn't configured, so it can never fall back to the retired V1 address below). Two full designated-agent cycles have already settled on it end to end.
 
 ## 60-second testnet demo
 
-1. **Create:** the requester locks `0.001 BOT` in escrow.
-2. **Claim:** a second wallet becomes the agent.
-3. **Release:** the requester settles the escrow to that agent.
-4. **Rate:** the requester records a `5 / 5` reputation signal.
+1. **Create:** the requester locks `0.001 BOT` in escrow for a designated agent.
+2. **Accept:** the designated agent accepts, starting the work deadline.
+3. **Submit:** the agent records delivery evidence, starting the review window.
+4. **Release:** the requester settles the escrow to the agent.
+5. **Rate:** the requester records a `5 / 5` reputation signal.
 
-| 1. Fund the bounty | 2. Claim from a second wallet |
+| Bounty dashboard | Create a bounty |
 |---|---|
-| <img src="docs/readme/created.png" alt="Newly funded open bounty" width="100%"> | <img src="docs/readme/claimed.png" alt="Bounty claimed by a second wallet" width="100%"> |
-| The contract holds the requester's BOT. | The bounty records an independent agent address. |
+| <img src="docs/readme/bounties.png" alt="Connected wallet with recent bounties" width="100%"> | <img src="docs/readme/create.png" alt="Create bounty form" width="100%"> |
+| Connected wallet, recent bounties, and the "View a bounty" lookup. | Designate an agent, fund the escrow, and set the work/review windows. |
 
-| 3. Release payment | 4. Record reputation |
+| Released bounty | Recorded rating |
 |---|---|
-| <img src="docs/readme/released.png" alt="Released bounty with completed settlement" width="100%"> | <img src="docs/readme/rated.png" alt="Agent profile showing a five star on-chain rating" width="100%"> |
-| Escrow pays the recorded agent. | The released bounty contributes one permanent rating. |
+| <img src="docs/readme/released.png" alt="Bounty detail with all four lifecycle steps checked" width="100%"> | <img src="docs/readme/rated.png" alt="Bounty detail showing a five out of five agent rating" width="100%"> |
+| Full `Created -> Accepted -> Submitted -> Released` tracker for bounty #1. | Bounty #0's designated agent rated 5.0 / 5 after release. |
+
+| Live activity feed |
+|---|
+| <img src="docs/readme/activity.png" alt="On-chain escrow activity feed" width="100%"> |
+| Every step of bounty #1's cycle, timestamped as it happened. |
 
 ### On-chain receipts
 
+Bounty #1 (pictured above):
+
 | Action | Testnet proof |
 |---|---|
-| Create bounty #1 | [Transaction `0x070f...c13b`](https://scan.bohr.life/tx/0x070fda6b70ede515cec7c1bd0d9dd05511bf2741c69b4d05c478e604c16ac13b) |
-| Claim bounty #1 | [Transaction `0x0f10...a3fc`](https://scan.bohr.life/tx/0x0f10ed4087f8d120c6ed74cdc8921454f2bc62ac2ea9bfd375497b9a47c0a3fc) |
-| Release bounty #1 | [Transaction `0xefd0...5bcd`](https://scan.bohr.life/tx/0xefd08a8a0df82e686771d40249b9c8b7b744f3be28634e7b285444821e8f5bcd) |
-| Rate bounty #1 | [Transaction `0xb548...db5`](https://scan.bohr.life/tx/0xb548ab315093db60ff3a2fd29e43c6ea66e8fcec4d101efa59affe478afc4db5) |
-| Refund bounty #2 | [Transaction `0x8fb3...b89`](https://scan.bohr.life/tx/0x8fb3ab738c812628123fcd56c7795703c760fd5a7748e9b8351efe92475bdb89) |
+| Create bounty #1 (`0.001 BOT`, designated agent, 1h work / 1h review windows) | [Transaction `0x89c3...50d4`](https://scan.bohr.life/tx/0x89c3b37b8df0f7f3f3543a3558b378bbabd085f33ac4be0be6b9c0827cb350d4) |
+| Accept bounty #1 | [Transaction `0xb0ed...34fc`](https://scan.bohr.life/tx/0xb0ed17ea6d82dd62c5971cb971702f7aacc38e1af68bd0cf367e9bde811434fc) |
+| Submit work for bounty #1 | [Transaction `0x5936...fb15f`](https://scan.bohr.life/tx/0x593667572a0a6eac7c98e0965a53f0c69f562a51ac563c8ec338fdef233fb15f) |
+| Release bounty #1 | [Transaction `0xd31c...e994`](https://scan.bohr.life/tx/0xd31c3b89e3993ae1234b326f2eec04a0c56780fe86f5b063b6717460999e2994) |
+| Rate bounty #1 (`5 / 5`) | [Transaction `0x5c80...2aab9`](https://scan.bohr.life/tx/0x5c8046673819a6a99b3ddaba57b73ff2bf07e5abd4ae2226e8c11a720702aab9) |
+
+Bounty #0 settled the same full cycle earlier with [create](https://scan.bohr.life/tx/0xf3fcbeedd32f79b8483d19a041368099bc68a8abe97da5eadba09c9c5e661602), [accept](https://scan.bohr.life/tx/0x45571dae8b2dab7041385cef6ddd22aaad0ad0d8dc553c17ddc1500541fc84d0), [submit](https://scan.bohr.life/tx/0x2e59661415a9581fee1e20c7381e9d30e91735cf93ab3834e4af6ee6599f6517), [release](https://scan.bohr.life/tx/0x76d1b4f14f03e7d01ff4436f158a4e95ebaf210b0cfcd2f1911ea70ac58838a0), [rate](https://scan.bohr.life/tx/0xa00ad9e09dbf3b6c924eec43d2a06202ca79a064ffaef33bc1ea074248168020), and is the "rated" screenshot above.
 
 All demo transactions used disposable wallets and testnet BOT only.
-
-## Product tour
-
-| Wallet access ledger | Bounty dashboard |
-|---|---|
-| <img src="docs/readme/access-ledger.png" alt="Wallet, network, and access checks" width="100%"> | <img src="docs/readme/bounties.png" alt="Bounty dashboard with recent escrow states" width="100%"> |
-
-| Create flow | Live activity |
-|---|---|
-| <img src="docs/readme/create.png" alt="Create bounty form" width="100%"> | <img src="docs/readme/activity.png" alt="On-chain escrow activity feed" width="100%"> |
-
-| Agent profile | Refund branch |
-|---|---|
-| <img src="docs/readme/profile.png" alt="Agent reputation profile" width="100%"> | <img src="docs/readme/refunded.png" alt="Refunded bounty state" width="100%"> |
 
 ## Why Agent Escrow
 
@@ -80,7 +76,7 @@ All demo transactions used disposable wallets and testnet BOT only.
 - **Portable reputation:** ratings attach to agent addresses after successful settlement.
 - **Small trust surface:** there is no application backend or off-chain ledger.
 
-## V2 contract lifecycle
+## Contract lifecycle
 
 ```text
 Open -> Accepted -> Submitted -> Released
@@ -90,7 +86,7 @@ Accepted or Submitted -> Cancelled after both parties approve
 Submitted -> Released by requester, or finalized after review expires
 ```
 
-V2 designates the agent at creation, starts the work clock at acceptance, records submission evidence, and gives the requester a bounded review period. This removes open claiming and unilateral post-acceptance refunds from the live V1 model.
+Agent Escrow designates the agent at creation, starts the work clock at acceptance, records submission evidence, and gives the requester a bounded review period. This removes open claiming and unilateral post-acceptance refunds from the retired V1 model.
 
 ### Contract reference
 
@@ -143,7 +139,7 @@ npm run build --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Deploy V2 to BOT Chain testnet:
+Deploy to BOT Chain testnet:
 
 ```bash
 cp .env.example .env
@@ -152,7 +148,7 @@ npx hardhat run scripts/deploy.js --network botchainTestnet
 npx hardhat verify --network botchainTestnet <deployed-address>
 ```
 
-The deploy script prints copy-ready `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK` values. Put them in `frontend/.env.local`, then build the frontend. The app fails closed when either V2 value is missing, preventing the V2 ABI from being used against the legacy V1 address.
+The deploy script prints copy-ready `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK` values. Put them in `frontend/.env.local`, then build the frontend. The app fails closed when either value is missing, preventing the ABI from being used against the legacy V1 address.
 
 BOT Chain testnet uses chain ID `968`, RPC `https://rpc.bohr.life`, and explorer `https://scan.bohr.life`.
 
