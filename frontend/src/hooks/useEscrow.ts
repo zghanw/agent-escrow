@@ -20,6 +20,12 @@ import {
   type ActivityFeedEntry,
 } from "@/lib/activityFeed";
 import { readBountyWithNotFoundRetry } from "@/lib/bountyRead";
+import {
+  loadCachedWalletHistory,
+  readBotBalance,
+  readWalletHistory,
+} from "@/lib/walletHistoryReader";
+import type { WalletHistoryResult } from "@/lib/walletHistory";
 
 declare global {
   interface Window {
@@ -182,6 +188,8 @@ export function useEscrow() {
   const [eventFeed, setEventFeed] = useState<FeedEntry[]>([]);
   const [bountyDetail, setBountyDetail] = useState<BountyDetail | null>(null);
   const [myRatingText, setMyRatingText] = useState<string | null>(null);
+  const [botBalance, setBotBalance] = useState<bigint | null>(null);
+  const [walletHistoryVersion, setWalletHistoryVersion] = useState(0);
   const [log, setLog] = useState<LogState>({ message: "", kind: "" });
   const [busy, setBusy] = useState(false);
 
@@ -191,6 +199,7 @@ export function useEscrow() {
   const hasBackfilledRef = useRef(false);
   const lastActivityBlockRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const walletHistoryCacheRef = useRef(new Map<string, WalletHistoryResult>());
 
   const writeLog = useCallback((message: string, kind: LogKind = "", txHash?: string) => {
     setLog({ message, kind, txHash });
@@ -228,6 +237,26 @@ export function useEscrow() {
     },
     [describeAgentRating]
   );
+
+  const refreshBotBalance = useCallback(async (address: string) => {
+    if (!providerRef.current) return;
+    try {
+      setBotBalance(await readBotBalance(providerRef.current, address));
+    } catch {
+      /* preserve the previous balance during a transient RPC failure */
+    }
+  }, []);
+
+  const loadWalletHistory = useCallback(async (address: string, force = false) => {
+    const contract = contractRef.current;
+    const provider = providerRef.current;
+    if (!contract || !provider || !CONTRACT_CONFIGURED) {
+      throw new Error("Escrow contract is not configured.");
+    }
+    return loadCachedWalletHistory(walletHistoryCacheRef.current, address, force, (normalizedAddress) =>
+      readWalletHistory(contract, provider, normalizedAddress, CONTRACT_DEPLOY_BLOCK, waitForBountyReadRetry),
+    );
+  }, []);
 
   const setupEventFeed = useCallback(
     (contract: ethers.Contract, myAddress: string) => {
@@ -372,13 +401,16 @@ export function useEscrow() {
       providerRef.current = provider;
       signerRef.current = signer;
       setSignerAddress(accounts[0]);
+      setBotBalance(null);
+      walletHistoryCacheRef.current.clear();
 
       contractRef.current?.removeAllListeners();
       if (!CONTRACT_CONFIGURED) {
         contractRef.current = null;
         setRecentBounties([]);
         setBountyDetail(null);
-        await refreshNetwork();
+        const isOnBotChain = await refreshNetwork();
+        if (isOnBotChain) await refreshBotBalance(accounts[0]);
         writeLog(
           "Escrow V2 is not deployed yet. Configure VITE_CONTRACT_ADDRESS and VITE_CONTRACT_DEPLOY_BLOCK after deployment.",
           "err"
@@ -391,6 +423,7 @@ export function useEscrow() {
 
       const isOnBotChain = await refreshNetwork();
       if (isOnBotChain) {
+        await refreshBotBalance(accounts[0]);
         await refreshRecentBounties();
         await refreshMyRating(accounts[0]);
         await maybeBackfillEventFeed();
@@ -398,7 +431,7 @@ export function useEscrow() {
       setupEventFeed(contract, accounts[0]);
       writeLog("");
     },
-    [maybeBackfillEventFeed, refreshMyRating, refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
+    [maybeBackfillEventFeed, refreshBotBalance, refreshMyRating, refreshNetwork, refreshRecentBounties, setupEventFeed, writeLog]
   );
 
   const connectWallet = useCallback(async () => {
@@ -464,11 +497,13 @@ export function useEscrow() {
     }
     const isOnBotChain = await refreshNetwork();
     if (isOnBotChain) {
+      walletHistoryCacheRef.current.clear();
+      if (signerAddress) await refreshBotBalance(signerAddress);
       await refreshRecentBounties();
       if (signerAddress) await refreshMyRating(signerAddress);
       await maybeBackfillEventFeed();
     }
-  }, [maybeBackfillEventFeed, refreshMyRating, refreshNetwork, refreshRecentBounties, signerAddress, writeLog]);
+  }, [maybeBackfillEventFeed, refreshBotBalance, refreshMyRating, refreshNetwork, refreshRecentBounties, signerAddress, writeLog]);
 
   const requireSignerContract = useCallback(() => {
     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerRef.current!);
@@ -539,6 +574,9 @@ export function useEscrow() {
         writeLog("Transaction sent, waiting for confirmation…", "pending");
         const receipt = await tx.wait();
         writeLog(doneMessage, "ok", receipt?.hash);
+        walletHistoryCacheRef.current.clear();
+        setWalletHistoryVersion((current) => current + 1);
+        if (signerAddress) await refreshBotBalance(signerAddress);
         if (bountyDetail) await loadBounty(bountyDetail.id);
         await refreshRecentBounties();
       } catch (err: any) {
@@ -547,7 +585,7 @@ export function useEscrow() {
         setBusy(false);
       }
     },
-    [bountyDetail, loadBounty, refreshRecentBounties, writeLog]
+    [bountyDetail, loadBounty, refreshBotBalance, refreshRecentBounties, signerAddress, writeLog]
   );
 
   const createBounty = useCallback(
@@ -593,6 +631,9 @@ export function useEscrow() {
         }
 
         writeLog(`Bounty created${newId !== null ? ` (#${newId.toString()})` : ""}.`, "ok", receipt.hash);
+        walletHistoryCacheRef.current.clear();
+        setWalletHistoryVersion((current) => current + 1);
+        await refreshBotBalance(signerAddress);
         await refreshRecentBounties();
         if (newId !== null) await loadBounty(newId);
         return true;
@@ -603,7 +644,7 @@ export function useEscrow() {
         setBusy(false);
       }
     },
-    [loadBounty, refreshRecentBounties, requireSignerContract, signerAddress, writeLog]
+    [loadBounty, refreshBotBalance, refreshRecentBounties, requireSignerContract, signerAddress, writeLog]
   );
 
   const accept = useCallback(
@@ -670,6 +711,7 @@ export function useEscrow() {
         refreshActivityFeed(),
         refreshRecentBounties(true),
         refreshMyRating(signerAddress),
+        refreshBotBalance(signerAddress),
       ];
       if (selectedBountyId !== null) {
         reads.push(
@@ -682,7 +724,7 @@ export function useEscrow() {
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [fetchBountyDetail, onBotChain, refreshActivityFeed, refreshMyRating, refreshRecentBounties, selectedBountyId, signerAddress]);
+  }, [fetchBountyDetail, onBotChain, refreshActivityFeed, refreshBotBalance, refreshMyRating, refreshRecentBounties, selectedBountyId, signerAddress]);
 
   useEffect(() => {
     if (!signerAddress || !onBotChain || !CONTRACT_CONFIGURED) return;
@@ -713,15 +755,21 @@ export function useEscrow() {
         setOnBotChain(false);
         setRecentBounties(null);
         setMyRatingText(null);
+        setBotBalance(null);
+        walletHistoryCacheRef.current.clear();
         return;
       }
       await activateAccounts(accounts);
       if (bountyDetail) await loadBounty(bountyDetail.id);
     };
     const onChainChanged = () => {
+      setBotBalance(null);
+      walletHistoryCacheRef.current.clear();
       refreshNetwork()
         .then((isOnBotChain) => {
-          if (isOnBotChain) refreshRecentBounties();
+          if (isOnBotChain) {
+            refreshRecentBounties();
+          }
         })
         .catch(() => setOnBotChain(false));
     };
@@ -758,6 +806,8 @@ export function useEscrow() {
     eventFeed,
     bountyDetail,
     myRatingText,
+    botBalance,
+    walletHistoryVersion,
     log,
     busy,
     explorerBase: EXPLORER_BASE,
@@ -776,6 +826,7 @@ export function useEscrow() {
     finalize,
     setCancellationApproval,
     rate,
+    loadWalletHistory,
     clearLog: () => writeLog(""),
   };
 }

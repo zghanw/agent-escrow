@@ -105,3 +105,50 @@ test("rejects malformed addresses before making chain reads", async () => {
   );
   assert.equal(reads, 0);
 });
+
+test("reads a native BOT balance for the normalized wallet", async () => {
+  const { readBotBalance } = await loadReader();
+  assert.equal(typeof readBotBalance, "function");
+  let requestedAddress = null;
+  const provider = {
+    async getBalance(address) {
+      requestedAddress = address;
+      return 4_590000000000000000n;
+    },
+  };
+
+  assert.equal(await readBotBalance(provider, wallet.toLowerCase()), 4_590000000000000000n);
+  assert.equal(requestedAddress, wallet);
+});
+
+test("reuses cached history until a force refresh is requested", async () => {
+  const { loadCachedWalletHistory } = await loadReader();
+  assert.equal(typeof loadCachedWalletHistory, "function");
+  const cache = new Map();
+  let reads = 0;
+  const reader = async (address) => {
+    reads += 1;
+    return {
+      address,
+      bounties: [],
+      summary: {
+        totalEarned: 0n,
+        totalPaidOut: 0n,
+        activeCount: 0,
+        totalCount: reads,
+        ratingAverage: null,
+        ratingCount: 0,
+      },
+    };
+  };
+
+  const first = await loadCachedWalletHistory(cache, wallet.toLowerCase(), false, reader);
+  const cached = await loadCachedWalletHistory(cache, wallet, false, reader);
+  const refreshed = await loadCachedWalletHistory(cache, wallet, true, reader);
+
+  assert.equal(first, cached);
+  assert.equal(first.summary.totalCount, 1);
+  assert.equal(refreshed.summary.totalCount, 2);
+  assert.equal(reads, 2);
+  assert.equal(cache.size, 1);
+});

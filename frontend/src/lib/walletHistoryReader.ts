@@ -108,3 +108,28 @@ export async function readWalletHistory(
     summary: summarizeWalletHistory(address, bounties, rating.totalScore, rating.count),
   };
 }
+
+export async function readBotBalance(
+  provider: Pick<ethers.Provider, "getBalance">,
+  addressInput: string,
+): Promise<bigint> {
+  const address = normalizeWalletAddress(addressInput);
+  if (!address) throw new Error("Enter a valid wallet address.");
+  return provider.getBalance(address);
+}
+
+export async function loadCachedWalletHistory(
+  cache: Map<string, WalletHistoryResult>,
+  addressInput: string,
+  force: boolean,
+  reader: (address: string) => Promise<WalletHistoryResult>,
+): Promise<WalletHistoryResult> {
+  const address = normalizeWalletAddress(addressInput);
+  if (!address) throw new Error("Enter a valid wallet address.");
+  const key = address.toLowerCase();
+  const cached = cache.get(key);
+  if (cached && !force) return cached;
+  const result = await reader(address);
+  cache.set(key, result);
+  return result;
+}
