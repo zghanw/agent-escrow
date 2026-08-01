@@ -19,6 +19,7 @@ import {
   mergeActivityEntries,
   type ActivityFeedEntry,
 } from "@/lib/activityFeed";
+import { readBountyWithNotFoundRetry } from "@/lib/bountyRead";
 
 declare global {
   interface Window {
@@ -30,7 +31,12 @@ const RECENT_BOUNTIES_LIMIT = 10;
 const FEED_LIMIT = 25;
 const MAX_LOG_RANGE = 4500; // stay under this RPC's undocumented 5000-block eth_getLogs cap
 const POLL_INTERVAL_MS = 5000;
+const BOUNTY_READ_RETRY_MS = 1000;
 const REFRESH_HINT = "Try refreshing the website.";
+
+function waitForBountyReadRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, BOUNTY_READ_RETRY_MS));
+}
 
 function withRefreshHint(message: string, error?: any) {
   return error?.code === 4001 ? message : `${message} ${REFRESH_HINT}`;
@@ -472,26 +478,28 @@ export function useEscrow() {
     async (id: bigint): Promise<BountyDetail | null> => {
       const contract = contractRef.current;
       if (!contract) return null;
-      const bounty = await contract.bounties(id);
-      if (bounty.requester === ethers.ZeroAddress) return null;
+      return readBountyWithNotFoundRetry(async () => {
+        const bounty = await contract.bounties(id);
+        if (bounty.requester === ethers.ZeroAddress) return null;
 
-      return {
-        id,
-        status: STATUS_NAMES[Number(bounty.status)],
-        description: bounty.description,
-        amount: bounty.amount,
-        requester: bounty.requester,
-        agent: bounty.agent,
-        submission: bounty.submission,
-        workDeadline: Number(bounty.workDeadline),
-        reviewDeadline: Number(bounty.reviewDeadline),
-        workDuration: Number(bounty.workDuration),
-        reviewPeriod: Number(bounty.reviewPeriod),
-        requesterCancellationApproved: bounty.requesterCancellationApproved,
-        agentCancellationApproved: bounty.agentCancellationApproved,
-        agentRatingText: await describeAgentRating(bounty.agent),
-        alreadyRated: await contract.bountyRated(id),
-      };
+        return {
+          id,
+          status: STATUS_NAMES[Number(bounty.status)],
+          description: bounty.description,
+          amount: bounty.amount,
+          requester: bounty.requester,
+          agent: bounty.agent,
+          submission: bounty.submission,
+          workDeadline: Number(bounty.workDeadline),
+          reviewDeadline: Number(bounty.reviewDeadline),
+          workDuration: Number(bounty.workDuration),
+          reviewPeriod: Number(bounty.reviewPeriod),
+          requesterCancellationApproved: bounty.requesterCancellationApproved,
+          agentCancellationApproved: bounty.agentCancellationApproved,
+          agentRatingText: await describeAgentRating(bounty.agent),
+          alreadyRated: await contract.bountyRated(id),
+        };
+      }, waitForBountyReadRetry);
     },
     [describeAgentRating]
   );
