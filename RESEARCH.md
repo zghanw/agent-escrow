@@ -2,10 +2,10 @@
 
 ## Design and evaluation of deadline-bounded on-chain escrow for agent work on BOT Chain
 
-**Report status:** Implemented and evaluated on BOT Chain testnet
+**Report status:** Implemented, tested on BOT Chain testnet, and deployed to BOT Chain mainnet
 **Live application:** [https://www.agent-escrow.online/](https://www.agent-escrow.online/)
-**Verified contract:** [`0xf6C2Fb86E1f172c1aFddB665768827402C438592`](https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code)
-**Network:** BOT Chain testnet, chain ID `968`
+**Verified mainnet contract:** [`0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B`](https://scan.botchain.ai/address/0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B#code)
+**Network:** BOT Chain mainnet, chain ID `677` (development and settlement evidence were produced first on BOT Chain testnet, chain ID `968`, contract `0xf6C2Fb86E1f172c1aFddB665768827402C438592`)
 
 ## 1. Executive summary
 
@@ -15,12 +15,12 @@ The implemented answer is a non-custodial application built around a Solidity st
 
 The project consists of:
 
-- a Solidity `0.8.24` contract deployed and verified on BOT Chain testnet;
+- a Solidity `0.8.24` contract deployed and verified on BOT Chain mainnet, with the identical source proven earlier on BOT Chain testnet;
 - a static React and TypeScript client that communicates directly with the chain through ethers.js;
 - MetaMask connection and one-click BOT Chain network configuration;
-- an event-backed activity feed, bounty lookup, recent-bounty view, transaction links, and reputation summaries;
+- an event-backed activity feed, bounty lookup, recent-bounty view, indexed wallet history, transaction links, and reputation summaries;
 - 16 passing Hardhat tests covering contract and deployment behavior;
-- 7 passing frontend policy and ABI tests;
+- 26 passing frontend policy and ABI tests;
 - two published end-to-end testnet settlement cycles with transaction receipts.
 
 The prototype demonstrates that bounded deadlines can reduce the two central failure modes of informal agent work: an agent accepting payment terms but never delivering, and a requester receiving delivery but refusing to settle. It does not solve subjective disputes, identity verification, data confidentiality, or production governance. Those limitations define the boundary between a testnet prototype and a production escrow protocol.
@@ -235,7 +235,7 @@ The application:
 - requests or restores authorized accounts;
 - creates an ethers `BrowserProvider` in network-flexible mode;
 - reads `eth_chainId` directly to avoid stale chain state during switching;
-- requests `wallet_switchEthereumChain` for chain ID `0x3C8`;
+- requests `wallet_switchEthereumChain` for chain ID `0x2A5` (BOT Chain mainnet, `677`);
 - falls back to `wallet_addEthereumChain` when BOT Chain is unknown to the wallet;
 - reacts to account and chain changes;
 - surfaces wallet rejection and pending-request errors in user-facing language.
@@ -258,7 +258,8 @@ The browser does not maintain a separate application ledger. It reads:
 - the connected address's rating summary;
 - whether the selected bounty has already been rated;
 - up to 25 recent contract events;
-- new lifecycle events through live listeners.
+- new lifecycle events through live listeners;
+- indexed requester and agent history, settlement totals, and native BOT balance for the connected wallet or any looked-up address.
 
 Historical event reads begin at the configured deployment block and use ranges of at most 4,500 blocks to stay below the public RPC's observed log-query limit. Failed historical chunks are treated as best-effort display failures; they do not change contract state or transaction availability.
 
@@ -325,10 +326,14 @@ The tested behaviors include:
 
 ### 10.2 Frontend tests
 
-The frontend suite contains 7 passing tests:
+The frontend suite contains 26 passing tests across six files:
 
-- 2 ABI tests verify every expected V2 function and every bounty struct field;
-- 5 policy tests verify role-specific actions, exact deadline changes, terminal-state behavior, cancellation approval/revocation, and all bounty-creation validations.
+- ABI tests verify every expected V2 function and every bounty struct field;
+- policy tests verify role-specific actions, exact deadline changes, terminal-state behavior, cancellation approval and revocation, and all bounty-creation validations;
+- activity-feed tests verify event deduplication, ordering, and the feed size limit;
+- a bounty-read test verifies the one-retry behavior for a transient not-found response;
+- wallet-history tests verify address normalization, role filtering, totals, BOT formatting, and pagination;
+- wallet-history-reader tests verify indexed chain queries, RPC-safe block-range chunking, and bounded hydration.
 
 TypeScript compilation, Vite production builds, and Oxlint provide additional static verification. Lint currently reports non-blocking fast-refresh warnings in shared component files; these warnings do not indicate contract or settlement failures.
 
@@ -340,13 +345,33 @@ Automated tests establish expected behavior in a local deterministic environment
 
 The current application is served from [agent-escrow.online](https://www.agent-escrow.online/) through GitHub Pages. Pushes to `master` trigger a locked-dependency frontend build, upload the generated static artifact, and deploy it to the GitHub Pages environment.
 
-The verified V2 contract is:
+The frontend now points at the mainnet contract:
+
+```text
+0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B
+```
+
+| Field | Value |
+|---|---|
+| Contract address | `0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B` |
+| Network | BOT Chain mainnet, chain ID `677` |
+| Deployer | `0x1221C500Dfd0D3E477ed741a849edEa303d689Ca` |
+| Deployment transaction | `0x9fc27618bd9f4475fd0583a75cd030764e5ef49e72ae07f19a6f95ebd4c13b56` |
+| Deployment block | `18167177` |
+| Deployment date | `2026-08-01` |
+| Compiler version | Solidity `0.8.24` |
+
+No bounty has been created on the mainnet contract yet. The settlement cycles below were produced on the earlier BOT Chain testnet deployment during development and remain the published evidence for end-to-end execution mechanics.
+
+### 11.1 Prior BOT Chain testnet deployment
+
+The same source was first deployed and verified on BOT Chain testnet at:
 
 ```text
 0xf6C2Fb86E1f172c1aFddB665768827402C438592
 ```
 
-### 11.1 Published settlement cycle: bounty #1
+### 11.2 Published settlement cycle: bounty #1
 
 | Transition | BOT Chain testnet transaction |
 |---|---|
@@ -356,7 +381,7 @@ The verified V2 contract is:
 | Requester releases payment | [`0xd31c…e994`](https://scan.bohr.life/tx/0xd31c3b89e3993ae1234b326f2eec04a0c56780fe86f5b063b6717460999e2994) |
 | Requester records `5 / 5` rating | [`0x5c80…aab9`](https://scan.bohr.life/tx/0x5c8046673819a6a99b3ddaba57b73ff2bf07e5abd4ae2226e8c11a720702aab9) |
 
-### 11.2 Published settlement cycle: bounty #0
+### 11.3 Published settlement cycle: bounty #0
 
 | Transition | BOT Chain testnet transaction |
 |---|---|
@@ -372,12 +397,13 @@ These transactions used disposable wallets and testnet BOT. They demonstrate exe
 
 The interface uses a “trading terminal” visual model: near-black surfaces, a single gold signal color, monospace operational text, bracketed panels, and explicit status indicators. The design goal is to make fund state feel monitored and inspectable rather than decorative.
 
-The main interface separates four tasks:
+The main interface separates five tasks:
 
 - **Bounties:** recent records, lookup, state visualization, and permitted actions;
 - **Create:** designated-agent address, BOT amount, description, work duration, and review period;
 - **Activity:** historical and live event feed;
-- **Profile:** connected wallet and rating summary.
+- **Wallets:** read-only requester and agent history, settlement totals, and rating lookup for any valid address;
+- **Profile:** the same history view applied automatically to the connected wallet.
 
 Three surfaces reduce cold-start uncertainty:
 
@@ -431,9 +457,9 @@ There is no administrator, pause function, or proxy. This removes privileged int
 
 The browser flow targets injected MetaMask-compatible providers and BOT Chain testnet. Public RPC degradation can hide live counts or activity history. Wallet transaction execution remains subject to provider behavior, gas availability, and network conditions.
 
-### 14.7 Testnet-only evidence
+### 14.7 Mainnet deployed, not yet exercised
 
-Testnet BOT has no monetary value. The observed flows validate integration but do not reproduce the incentives, liquidity, congestion, adversaries, or operational responsibilities of mainnet usage.
+The contract is deployed and verified on BOT Chain mainnet, but no bounty has been created there yet. The published settlement cycles used testnet BOT, which has no monetary value. They validate integration but do not yet reproduce the incentives, liquidity, congestion, adversaries, or operational responsibilities of a real mainnet settlement.
 
 ## 15. Future work
 
@@ -446,7 +472,7 @@ Future work should follow the risks identified above rather than add unrelated f
 5. **Discovery layer:** optional indexing for searchable bounties without making the indexer authoritative for settlement.
 6. **Economic model:** explicit fee rules, recipient governance, withdrawal safety, and transparent UI before enabling fees.
 7. **Operational resilience:** multiple RPC endpoints, monitoring, deployment checks, and incident documentation.
-8. **Mainnet readiness:** audit findings resolved, deployment reproducibility, verified source, controlled rollout, and risk disclosures.
+8. **Mainnet settlement evidence:** the contract is deployed and verified on BOT Chain mainnet; a real, small-value settlement cycle and updated on-chain evidence remain outstanding. Independent audit findings, if any, should be resolved before larger-value use.
 
 These are proposals, not features of the current deployment.
 
@@ -481,15 +507,17 @@ npm run dev --prefix frontend
 
 The policy suite should report 7 passing tests. The development server prints the local URL after startup.
 
-### 16.4 Deploy to BOT Chain testnet
+### 16.4 Deploy to BOT Chain mainnet or testnet
 
-Create a local `.env` from the provided example and set a funded disposable testnet deployment key. Never commit this value.
+Create a local `.env` from the provided example and set a funded deployment key. Never commit this value.
 
 ```bash
 cp .env.example .env
-npx hardhat run scripts/deploy.js --network botchainTestnet
-npx hardhat verify --network botchainTestnet <deployed-address>
+npx hardhat run scripts/deploy.js --network botchainMainnet
+npx hardhat verify --network botchainMainnet <deployed-address>
 ```
+
+Replace `botchainMainnet` with `botchainTestnet` for a development deployment using disposable testnet BOT.
 
 The deployment script prints the address, explorer link, and two frontend variables:
 
@@ -502,17 +530,17 @@ Place those values in `frontend/.env.local`, rebuild the frontend, and confirm t
 
 ### 16.5 Network reference
 
-| Field | BOT Chain testnet |
-|---|---|
-| Chain ID | `968` (`0x3C8`) |
-| Native currency | BOT, 18 decimals |
-| RPC | `https://rpc.bohr.life` |
-| Explorer | `https://scan.bohr.life` |
+| Field | BOT Chain mainnet | BOT Chain testnet |
+|---|---|---|
+| Chain ID | `677` (`0x2A5`) | `968` (`0x3C8`) |
+| Native currency | BOT, 18 decimals | BOT, 18 decimals |
+| RPC | `https://rpc.botchain.ai` | `https://rpc.bohr.life` |
+| Explorer | `https://scan.botchain.ai` | `https://scan.bohr.life` |
 
 ## 17. Conclusion
 
 Agent Escrow demonstrates a small, inspectable settlement protocol for work between two wallet addresses. Its contribution is not a claim that smart contracts can judge work. Instead, it shows that funding, designation, acceptance, delivery evidence, review, timeout settlement, refunds, mutual cancellation, and reputation can be represented as explicit rules with public evidence.
 
-The testnet deployment and two complete settlement cycles support the central result: deadline-bounded escrow can reduce both non-delivery risk and requester-inactivity risk without an application custodian. The remaining limitations include subjective disputes, public data, scaling, audit coverage, and production operations. They are substantial and intentionally visible.
+The testnet deployment and two complete settlement cycles support the central result: deadline-bounded escrow can reduce both non-delivery risk and requester-inactivity risk without an application custodian. The same source is now deployed and verified on BOT Chain mainnet. The remaining limitations include subjective disputes, public data, scaling, audit coverage, and a real mainnet settlement cycle. They are substantial and intentionally visible.
 
 For a concise demonstration and screenshots, return to the [project README](README.md). For executable behavior, inspect the [Solidity contract](contracts/AgentEscrow.sol) and [test suite](test/AgentEscrow.test.js).
