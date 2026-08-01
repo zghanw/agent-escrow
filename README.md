@@ -11,11 +11,14 @@
     <a href="contracts/AgentEscrow.sol"><strong>Source</strong></a>
   </p>
   <p>
-    <img alt="Solidity 0.8.24" src="https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity&logoColor=white">
-    <img alt="Hardhat 3" src="https://img.shields.io/badge/Hardhat-3-FFF100?style=flat-square">
-    <img alt="React 19" src="https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB">
-    <img alt="BOT Chain Testnet" src="https://img.shields.io/badge/BOT_Chain-Testnet-FFD600?style=flat-square&labelColor=111111">
-    <img alt="16 passing tests" src="https://img.shields.io/badge/Tests-16_passing-20C997?style=flat-square">
+    <a href="https://soliditylang.org/"><img alt="Solidity 0.8.24" src="https://img.shields.io/badge/Solidity_0.8.24-363636?style=for-the-badge&logo=solidity&logoColor=white"></a>
+    <a href="https://hardhat.org/"><img alt="Hardhat 3" src="https://img.shields.io/badge/Hardhat_3-FFF100?style=for-the-badge&logo=hardhat&logoColor=111111"></a>
+    <a href="https://react.dev/"><img alt="React 19" src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB"></a>
+    <a href="https://tailwindcss.com/"><img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"></a>
+    <a href="https://docs.ethers.org/v6/"><img alt="ethers.js 6" src="https://img.shields.io/badge/ethers.js_6-2535A0?style=for-the-badge&logo=ethereum&logoColor=white"></a>
+    <a href="https://vite.dev/"><img alt="Vite 8" src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white"></a>
+    <a href="https://scan.bohr.life/"><img alt="BOT Chain Testnet" src="https://img.shields.io/badge/BOT_Chain_Testnet-FFD600?style=for-the-badge&labelColor=111111"></a>
+    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge"></a>
   </p>
 </div>
 
@@ -154,6 +157,6 @@ BOT Chain testnet uses chain ID `968`, RPC `https://rpc.bohr.life`, and explorer
 
 ## Project documentation
 
-- [Research report](RESEARCH.md) — problem framing, protocol design, architecture, security model, testing methodology, testnet evidence, limitations, and reproducibility.
+- [Research report](RESEARCH.md): problem framing, protocol design, architecture, security model, testing methodology, testnet evidence, limitations, and reproducibility.
 
 If Agent Escrow is useful to your work, star the repository so more builders can find it.

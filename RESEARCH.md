@@ -513,6 +513,6 @@ Place those values in `frontend/.env.local`, rebuild the frontend, and confirm t
 
 Agent Escrow demonstrates a small, inspectable settlement protocol for work between two wallet addresses. Its contribution is not a claim that smart contracts can judge work. Instead, it shows that funding, designation, acceptance, delivery evidence, review, timeout settlement, refunds, mutual cancellation, and reputation can be represented as explicit rules with public evidence.
 
-The testnet deployment and two complete settlement cycles support the central result: deadline-bounded escrow can reduce both non-delivery risk and requester-inactivity risk without an application custodian. The remaining limitations—subjective disputes, public data, scaling, audit coverage, and production operations—are substantial and intentionally visible.
+The testnet deployment and two complete settlement cycles support the central result: deadline-bounded escrow can reduce both non-delivery risk and requester-inactivity risk without an application custodian. The remaining limitations include subjective disputes, public data, scaling, audit coverage, and production operations. They are substantial and intentionally visible.
 
 For a concise demonstration and screenshots, return to the [project README](README.md). For executable behavior, inspect the [Solidity contract](contracts/AgentEscrow.sol) and [test suite](test/AgentEscrow.test.js).

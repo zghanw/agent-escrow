@@ -6,7 +6,7 @@
   "scripts": {
     "test": "hardhat test"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.7",
     "@openzeppelin/contracts": "^5.6.1",
