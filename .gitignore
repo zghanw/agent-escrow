@@ -24,6 +24,9 @@ Thumbs.db
 .impeccable/live/
 .impeccable/hook.cache.json
 
+# Isolated agent worktrees
+.worktrees/
+
 # Playwright MCP session output (console logs, page snapshots)
 .playwright-mcp/
 
