@@ -154,9 +154,6 @@ BOT Chain testnet uses chain ID `968`, RPC `https://rpc.bohr.life`, and explorer
 
 ## Project documentation
 
-- [Hackathon strategy and scored angle](HACKATHON.md)
-- [Product definition](PRODUCT.md)
-- [Design system](DESIGN.md)
-- [Build plans and implementation records](docs/hackathon-build/)
+- [Research report](RESEARCH.md) — problem framing, protocol design, architecture, security model, testing methodology, testnet evidence, limitations, and reproducibility.
 
 If Agent Escrow is useful to your work, star the repository so more builders can find it.
