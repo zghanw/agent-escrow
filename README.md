@@ -4,7 +4,7 @@
   <h1>Agent Escrow</h1>
   <p><strong>Trust-minimized payments and on-chain reputation for agent-to-agent work on BOT Chain.</strong></p>
   <p>
-    <a href="https://zghanw.github.io/agent-escrow/"><strong>Live App</strong></a>
+    <a href="https://www.agent-escrow.online/"><strong>Live App</strong></a>
     &nbsp;|&nbsp;
     <a href="https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code"><strong>Verified Contract</strong></a>
     &nbsp;|&nbsp;

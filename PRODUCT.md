@@ -27,7 +27,7 @@ Not a token/NFT-mint clone — a real two-wallet state machine where value moves
 
 Submitted as a hackathon entry for BOTChain Build Week, hard deadline Tue Aug 4, 2026, 11:59 PM. Judged cold and self-serve: a judge opens the live link with a fresh or unfamiliar MetaMask, uses the one-click "Add BOT Chain" flow if the testnet isn't configured, then runs create → accept → submit → release from two wallets, watching balances and the live activity feed update in place.
 
-Deployed as a static SPA to GitHub Pages under base path `/agent-escrow/` (Vite `base`), routed with `HashRouter` since there is no server to own path rewrites. No backend: the page talks directly to the configured contract over ethers.js; on-chain state is the UI's state. The verified fixed address is legacy V1 and remains immutable. V2 requires a new deployment plus `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK`; the frontend disables interactions rather than mixing a V2 ABI with V1.
+Deployed as a static SPA to GitHub Pages at the custom-domain root, routed with `HashRouter` since there is no server to own path rewrites. No backend: the page talks directly to the configured contract over ethers.js; on-chain state is the UI's state. The verified fixed address is legacy V1 and remains immutable. V2 requires a new deployment plus `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK`; the frontend disables interactions rather than mixing a V2 ABI with V1.
 
 ## Capabilities and Constraints
 
@@ -44,7 +44,7 @@ Name and overall positioning remain locked. The V2 one-liner is: "Fund a designa
 
 ## Evidence on Hand
 
-- Live app: https://zghanw.github.io/agent-escrow/
+- Live app: https://www.agent-escrow.online/
 - Verified legacy V1 contract on BOT Chain testnet: `0x956E373A71dA8836FF6a5d5Fe5A5e2d05AF55Cc1`; no V2 address is claimed until deployment occurs.
 - Full rubric-scoring, angle-selection, and phase-plan reasoning in `HACKATHON.md`.
 - No testimonials, press, case studies, or customer evidence exist — none should be fabricated.
