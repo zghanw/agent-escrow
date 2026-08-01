@@ -26,3 +26,14 @@ Thumbs.db
 
 # Playwright MCP session output (console logs, page snapshots)
 .playwright-mcp/
+
+# AI Coding Agent & Hackathon internal docs
+.claude/
+.hackathon-build/
+.impeccable/
+HACKATHON.md
+HACKATHON_DECK.md
+PITCH_TIMEBOX.md
+DESIGN.md
+docs/hackathon-*/
+docs/pitch-timebox/
