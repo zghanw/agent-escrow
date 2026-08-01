@@ -15,6 +15,10 @@ import {
   type StatusName,
 } from "@/lib/contract";
 import { validateBountyDraft, type BountyDraft } from "@/lib/escrowPolicy";
+import {
+  mergeActivityEntries,
+  type ActivityFeedEntry,
+} from "@/lib/activityFeed";
 
 declare global {
   interface Window {
@@ -25,17 +29,14 @@ declare global {
 const RECENT_BOUNTIES_LIMIT = 10;
 const FEED_LIMIT = 25;
 const MAX_LOG_RANGE = 4500; // stay under this RPC's undocumented 5000-block eth_getLogs cap
+const POLL_INTERVAL_MS = 5000;
 const REFRESH_HINT = "Try refreshing the website.";
 
 function withRefreshHint(message: string, error?: any) {
   return error?.code === 4001 ? message : `${message} ${REFRESH_HINT}`;
 }
 
-export interface FeedEntry {
-  id: number;
-  time: string;
-  text: string;
-}
+export type FeedEntry = ActivityFeedEntry;
 
 export interface RecentBounty {
   id: bigint;
@@ -113,27 +114,19 @@ function formatEventLog(name: string, args: readonly any[]): string | null {
   }
 }
 
-// One-time history read so the Activity tab isn't empty just because its
-// events fired before this page load's live listeners existed - `contract.on`
-// only ever reports events going forward from the moment it's registered.
-// Chunks the range from deploy to latest (this RPC rejects >5000 blocks per
-// eth_getLogs call) and fetches all chunks in parallel rather than paging
-// sequentially, since the chain is already 100k+ blocks past this contract's
-// deployment.
-async function backfillEventFeed(contract: ethers.Contract, provider: ethers.Provider): Promise<FeedEntry[]> {
-  const latest = await provider.getBlockNumber();
-
+async function queryEventFeed(
+  contract: ethers.Contract,
+  provider: ethers.Provider,
+  fromBlock: number,
+  toBlock: number
+): Promise<FeedEntry[]> {
   const ranges: Array<[number, number]> = [];
-  for (let to = latest; to >= CONTRACT_DEPLOY_BLOCK; to -= MAX_LOG_RANGE) {
-    const from = Math.max(CONTRACT_DEPLOY_BLOCK, to - MAX_LOG_RANGE + 1);
+  for (let to = toBlock; to >= fromBlock; to -= MAX_LOG_RANGE) {
+    const from = Math.max(fromBlock, to - MAX_LOG_RANGE + 1);
     ranges.push([from, to]);
   }
 
-  const chunks = await Promise.all(
-    ranges.map(([from, to]) =>
-      contract.queryFilter("*", from, to).catch(() => [] as (ethers.EventLog | ethers.Log)[])
-    )
-  );
+  const chunks = await Promise.all(ranges.map(([from, to]) => contract.queryFilter("*", from, to)));
 
   const logs = chunks
     .flat()
@@ -156,11 +149,23 @@ async function backfillEventFeed(contract: ethers.Contract, provider: ethers.Pro
     const timestamp = blockTimestamps.get(log.blockNumber);
     entries.push({
       id: feedIdCounter++,
+      eventKey: `${log.transactionHash}:${log.index}`,
+      blockNumber: log.blockNumber,
+      logIndex: log.index,
       time: timestamp ? new Date(timestamp * 1000).toLocaleTimeString() : "",
       text,
     });
   }
-  return entries.reverse(); // newest first, matching addFeedEntry's convention
+  return mergeActivityEntries([], entries, FEED_LIMIT);
+}
+
+// One-time history read so the Activity tab isn't empty just because its
+// events fired before this page load's live listeners existed - `contract.on`
+// only ever reports events going forward from the moment it's registered.
+async function backfillEventFeed(contract: ethers.Contract, provider: ethers.Provider) {
+  const latestBlock = await provider.getBlockNumber();
+  const entries = await queryEventFeed(contract, provider, CONTRACT_DEPLOY_BLOCK, latestBlock);
+  return { entries, latestBlock };
 }
 
 export function useEscrow() {
@@ -178,16 +183,23 @@ export function useEscrow() {
   const signerRef = useRef<ethers.JsonRpcSigner | null>(null);
   const contractRef = useRef<ethers.Contract | null>(null);
   const hasBackfilledRef = useRef(false);
+  const lastActivityBlockRef = useRef(0);
+  const syncInFlightRef = useRef(false);
 
   const writeLog = useCallback((message: string, kind: LogKind = "", txHash?: string) => {
     setLog({ message, kind, txHash });
   }, []);
 
-  const addFeedEntry = useCallback((text: string) => {
-    setEventFeed((prev) => {
-      const entry: FeedEntry = { id: feedIdCounter++, time: new Date().toLocaleTimeString(), text };
-      return [entry, ...prev].slice(0, FEED_LIMIT);
-    });
+  const addFeedEntry = useCallback((text: string, payload: ethers.ContractEventPayload) => {
+    const entry: FeedEntry = {
+      id: feedIdCounter++,
+      eventKey: `${payload.log.transactionHash}:${payload.log.index}`,
+      blockNumber: payload.log.blockNumber,
+      logIndex: payload.log.index,
+      time: new Date().toLocaleTimeString(),
+      text,
+    };
+    setEventFeed((prev) => mergeActivityEntries(prev, [entry], FEED_LIMIT));
   }, []);
 
   const describeAgentRating = useCallback(async (agent: string) => {
@@ -213,7 +225,7 @@ export function useEscrow() {
 
   const setupEventFeed = useCallback(
     (contract: ethers.Contract, myAddress: string) => {
-      contract.on("BountyCreated", (id, requester, agent, amount, description, workDuration, reviewPeriod) => {
+      contract.on("BountyCreated", (id, requester, agent, amount, description, workDuration, reviewPeriod, payload) => {
         const text = formatEventLog("BountyCreated", [
           id,
           requester,
@@ -223,42 +235,42 @@ export function useEscrow() {
           workDuration,
           reviewPeriod,
         ]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("BountyAccepted", (id, agent, workDeadline) => {
+      contract.on("BountyAccepted", (id, agent, workDeadline, payload) => {
         const text = formatEventLog("BountyAccepted", [id, agent, workDeadline]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("WorkSubmitted", (id, agent, submission, reviewDeadline) => {
+      contract.on("WorkSubmitted", (id, agent, submission, reviewDeadline, payload) => {
         const text = formatEventLog("WorkSubmitted", [id, agent, submission, reviewDeadline]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("BountyReleased", (id, agent, amount) => {
+      contract.on("BountyReleased", (id, agent, amount, payload) => {
         const text = formatEventLog("BountyReleased", [id, agent, amount]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("BountyRefunded", (id, requester, amount) => {
+      contract.on("BountyRefunded", (id, requester, amount, payload) => {
         const text = formatEventLog("BountyRefunded", [id, requester, amount]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("BountyCancelled", (id, requester, amount, mutual) => {
+      contract.on("BountyCancelled", (id, requester, amount, mutual, payload) => {
         const text = formatEventLog("BountyCancelled", [id, requester, amount, mutual]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("CancellationApprovalUpdated", (id, party, approved) => {
+      contract.on("CancellationApprovalUpdated", (id, party, approved, payload) => {
         const text = formatEventLog("CancellationApprovalUpdated", [id, party, approved]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
       });
-      contract.on("AgentRated", (bountyId, agent, requester, score) => {
+      contract.on("AgentRated", (bountyId, agent, requester, score, payload) => {
         const text = formatEventLog("AgentRated", [bountyId, agent, requester, score]);
-        if (text) addFeedEntry(text);
+        if (text) addFeedEntry(text, payload);
         if (agent.toLowerCase() === myAddress.toLowerCase()) refreshMyRating(myAddress);
       });
     },
     [addFeedEntry, refreshMyRating]
   );
 
-  const refreshRecentBounties = useCallback(async () => {
+  const refreshRecentBounties = useCallback(async (silent = false) => {
     const contract = contractRef.current;
     if (!contract) return;
     try {
@@ -281,7 +293,7 @@ export function useEscrow() {
       setRecentBounties(list);
       setRecentBountiesError(null);
     } catch (err: any) {
-      setRecentBountiesError(`Couldn't load recent bounties: ${err.shortMessage || err.message}`);
+      if (!silent) setRecentBountiesError(`Couldn't load recent bounties: ${err.shortMessage || err.message}`);
     }
   }, []);
 
@@ -319,11 +331,31 @@ export function useEscrow() {
     if (hasBackfilledRef.current || !contractRef.current || !providerRef.current) return;
     hasBackfilledRef.current = true;
     try {
-      setEventFeed(await backfillEventFeed(contractRef.current, providerRef.current));
+      const snapshot = await backfillEventFeed(contractRef.current, providerRef.current);
+      setEventFeed(snapshot.entries);
+      lastActivityBlockRef.current = snapshot.latestBlock;
     } catch {
-      /* best-effort - the live feed still works going forward */
+      hasBackfilledRef.current = false;
     }
   }, []);
+
+  const refreshActivityFeed = useCallback(async () => {
+    const contract = contractRef.current;
+    const provider = providerRef.current;
+    if (!contract || !provider) return;
+    if (!hasBackfilledRef.current || lastActivityBlockRef.current === 0) {
+      await maybeBackfillEventFeed();
+      return;
+    }
+
+    const latestBlock = await provider.getBlockNumber();
+    const fromBlock = lastActivityBlockRef.current + 1;
+    if (fromBlock > latestBlock) return;
+
+    const entries = await queryEventFeed(contract, provider, fromBlock, latestBlock);
+    setEventFeed((current) => mergeActivityEntries(current, entries, FEED_LIMIT));
+    lastActivityBlockRef.current = latestBlock;
+  }, [maybeBackfillEventFeed]);
 
   const activateAccounts = useCallback(
     async (accounts: string[]) => {
@@ -436,6 +468,34 @@ export function useEscrow() {
     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerRef.current!);
   }, []);
 
+  const fetchBountyDetail = useCallback(
+    async (id: bigint): Promise<BountyDetail | null> => {
+      const contract = contractRef.current;
+      if (!contract) return null;
+      const bounty = await contract.bounties(id);
+      if (bounty.requester === ethers.ZeroAddress) return null;
+
+      return {
+        id,
+        status: STATUS_NAMES[Number(bounty.status)],
+        description: bounty.description,
+        amount: bounty.amount,
+        requester: bounty.requester,
+        agent: bounty.agent,
+        submission: bounty.submission,
+        workDeadline: Number(bounty.workDeadline),
+        reviewDeadline: Number(bounty.reviewDeadline),
+        workDuration: Number(bounty.workDuration),
+        reviewPeriod: Number(bounty.reviewPeriod),
+        requesterCancellationApproved: bounty.requesterCancellationApproved,
+        agentCancellationApproved: bounty.agentCancellationApproved,
+        agentRatingText: await describeAgentRating(bounty.agent),
+        alreadyRated: await contract.bountyRated(id),
+      };
+    },
+    [describeAgentRating]
+  );
+
   const loadBounty = useCallback(
     async (idInput: string | bigint) => {
       const idStr = typeof idInput === "bigint" ? idInput.toString() : idInput.trim();
@@ -443,36 +503,15 @@ export function useEscrow() {
         writeLog("Enter a bounty ID.", "err");
         return;
       }
-      const contract = contractRef.current;
-      if (!contract) return;
       try {
         const id = BigInt(idStr);
-        const bounty = await contract.bounties(id);
-        if (bounty.requester === ethers.ZeroAddress) {
+        const detail = await fetchBountyDetail(id);
+        if (!detail) {
           setBountyDetail(null);
           writeLog("No bounty exists with that ID.", "err");
           return;
         }
-        const status = STATUS_NAMES[Number(bounty.status)];
-        const agentRatingText = await describeAgentRating(bounty.agent);
-        const alreadyRated: boolean = await contract.bountyRated(id);
-        setBountyDetail({
-          id,
-          status,
-          description: bounty.description,
-          amount: bounty.amount,
-          requester: bounty.requester,
-          agent: bounty.agent,
-          submission: bounty.submission,
-          workDeadline: Number(bounty.workDeadline),
-          reviewDeadline: Number(bounty.reviewDeadline),
-          workDuration: Number(bounty.workDuration),
-          reviewPeriod: Number(bounty.reviewPeriod),
-          requesterCancellationApproved: bounty.requesterCancellationApproved,
-          agentCancellationApproved: bounty.agentCancellationApproved,
-          agentRatingText,
-          alreadyRated,
-        });
+        setBountyDetail(detail);
         // Deliberately not clearing the log here - a caller that just
         // completed a transaction wants its "View transaction" link to
         // survive this refresh, not vanish.
@@ -480,7 +519,7 @@ export function useEscrow() {
         writeLog(withRefreshHint(`Load failed: ${err.shortMessage || err.message}`), "err");
       }
     },
-    [describeAgentRating, writeLog]
+    [fetchBountyDetail, writeLog]
   );
 
   const runTx = useCallback(
@@ -604,6 +643,58 @@ export function useEscrow() {
     (id: bigint, score: number) => runTx(() => requireSignerContract().rateAgent(id, score), "Rating submitted."),
     [requireSignerContract, runTx]
   );
+
+  const selectedBountyId = bountyDetail?.id ?? null;
+  const synchronizeReadState = useCallback(async () => {
+    if (
+      syncInFlightRef.current ||
+      document.visibilityState !== "visible" ||
+      !signerAddress ||
+      !onBotChain ||
+      !contractRef.current
+    ) {
+      return;
+    }
+
+    syncInFlightRef.current = true;
+    try {
+      const reads: Promise<unknown>[] = [
+        refreshActivityFeed(),
+        refreshRecentBounties(true),
+        refreshMyRating(signerAddress),
+      ];
+      if (selectedBountyId !== null) {
+        reads.push(
+          fetchBountyDetail(selectedBountyId).then((detail) => {
+            if (detail) setBountyDetail(detail);
+          })
+        );
+      }
+      await Promise.allSettled(reads);
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [fetchBountyDetail, onBotChain, refreshActivityFeed, refreshMyRating, refreshRecentBounties, selectedBountyId, signerAddress]);
+
+  useEffect(() => {
+    if (!signerAddress || !onBotChain || !CONTRACT_CONFIGURED) return;
+
+    let intervalId: number | undefined;
+    const restartPolling = () => {
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+      intervalId = undefined;
+      if (document.visibilityState !== "visible") return;
+      void synchronizeReadState();
+      intervalId = window.setInterval(() => void synchronizeReadState(), POLL_INTERVAL_MS);
+    };
+
+    restartPolling();
+    document.addEventListener("visibilitychange", restartPolling);
+    return () => {
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", restartPolling);
+    };
+  }, [onBotChain, signerAddress, synchronizeReadState]);
 
   useEffect(() => {
     if (!window.ethereum) return;
