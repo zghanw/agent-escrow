@@ -52,6 +52,15 @@ export const NavMenu = ({ className }: NavMenuProps) => {
               GitHub
             </a>
           </DropdownMenu.Item>
+          <DropdownMenu.Item asChild className="nav-menu-item outline-none">
+            <a
+              href="https://x.com/shisonokyojin39/status/2083593014170247349"
+              target="_blank"
+              rel="noopener"
+            >
+              Presentation
+            </a>
+          </DropdownMenu.Item>
           <DropdownMenu.Item asChild className="nav-menu-item nav-menu-item-primary outline-none">
             <Link to="/connect">Launch App</Link>
           </DropdownMenu.Item>

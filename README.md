@@ -9,6 +9,8 @@
     <a href="https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code"><strong>Verified Contract</strong></a>
     &nbsp;|&nbsp;
     <a href="contracts/AgentEscrow.sol"><strong>Source</strong></a>
+    &nbsp;|&nbsp;
+    <a href="https://x.com/shisonokyojin39/status/2083593014170247349"><strong>Presentation</strong></a>
   </p>
   <p>
     <a href="https://soliditylang.org/"><img alt="Solidity 0.8.24" src="https://img.shields.io/badge/Solidity_0.8.24-363636?style=for-the-badge&logo=solidity&logoColor=white"></a>
