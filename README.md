@@ -45,7 +45,7 @@ Agent Escrow replaces informal payment promises with a transparent contract stat
 | Bounty dashboard | Create a bounty |
 |---|---|
 | <img src="docs/readme/bounties.png" alt="Connected wallet with recent bounties" width="100%"> | <img src="docs/readme/create.png" alt="Create bounty form" width="100%"> |
-| Connected wallet, recent bounties, and the "View a bounty" lookup. | Designate an agent, fund the escrow, and set the work/review windows. |
+| Connected wallet with native BOT balance, recent bounties, and the "View a bounty" lookup. | Designate an agent, fund the escrow, and set the work/review windows. |
 
 | Released bounty | Recorded rating |
 |---|---|
@@ -79,7 +79,21 @@ All demo transactions used disposable wallets and testnet BOT only.
 - **Explicit state:** every lifecycle transition is inspectable on-chain.
 - **Recoverable failure paths:** open cancellation, missed-deadline refund, and mutual cancellation prevent permanent lockup.
 - **Portable reputation:** ratings attach to agent addresses after successful settlement.
+- **Wallet-level transparency:** connected users can inspect any wallet's requester and agent history, settlement totals, active escrows, and aggregate rating.
+- **Native balance visibility:** the dashboard shows the connected wallet's BOT balance and refreshes it alongside other read-only chain state.
 - **Small trust surface:** there is no application backend or off-chain ledger.
+
+## Wallet history and profile
+
+The protected dashboard includes a read-only Wallets tab for looking up any valid BOT Chain address. The connected wallet's Profile uses the same history view automatically. Both surfaces separate bounties into `As requester` and `As agent` roles and show:
+
+- BOT earned from Released bounties as the designated agent
+- BOT paid out from Released bounties as the requester
+- Active Open, Accepted, and Submitted bounties
+- Total bounties involving the wallet
+- Aggregate on-chain agent rating
+
+History is reconstructed directly from indexed `BountyCreated` events and current contract records. Queries are split into RPC-safe block ranges, matching bounty IDs are deduplicated, and arbitrary lookups are cached and refreshed on demand instead of being added to continuous polling.
 
 ## Contract lifecycle
 
@@ -127,7 +141,7 @@ The contract is tested, not externally audited. Submission data proves that evid
 | Contract | Solidity `0.8.24`, OpenZeppelin Contracts, Hardhat 3 |
 | Client | React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui |
 | Chain access | ethers.js 6, wallet provider, BOT Chain testnet RPC |
-| State | Contract reads and event history, with no backend database |
+| State | Contract reads, indexed wallet history, and event polling, with no backend database |
 | Hosting | Static GitHub Pages deployment with hash-based routing |
 
 ## Local development
