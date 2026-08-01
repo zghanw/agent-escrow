@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS, CONTRACT_ABI, BOTCHAIN_TESTNET, EXPLORER_BASE, shortAddr } from "@/lib/contract";
+import { CONTRACT_ADDRESS, CONTRACT_ABI, BOTCHAIN_NETWORK, EXPLORER_BASE, shortAddr } from "@/lib/contract";
 import { px } from "./utils";
 
 // Read-only proof of life: no wallet required, just the public RPC. If the
@@ -10,7 +10,7 @@ function useLiveBountyCount() {
 
   useEffect(() => {
     let cancelled = false;
-    const provider = new ethers.JsonRpcProvider(BOTCHAIN_TESTNET.rpcUrls[0]);
+    const provider = new ethers.JsonRpcProvider(BOTCHAIN_NETWORK.rpcUrls[0]);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
     contract
       .bountyCount()

@@ -4,7 +4,7 @@ export function NetworkBanner({ show, onFix }: { show: boolean; onFix: () => voi
   if (!show) return null;
   return (
     <div className="banner bad">
-      <span>Wrong network - this app runs on BOT Chain testnet.</span>
+      <span>Wrong network - this app runs on BOT Chain.</span>
       <LiquidButton variant="outline" onClick={onFix}>
         Add / Switch to BOT Chain
       </LiquidButton>

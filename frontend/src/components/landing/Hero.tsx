@@ -13,7 +13,7 @@ export function Hero() {
       <GL hovering={hovering} />
 
       <div className="pb-16 mt-auto text-center relative px-5 sm:px-6">
-        <Pill className="mb-6">BOT CHAIN TESTNET</Pill>
+        <Pill className="mb-6">BOT CHAIN MAINNET</Pill>
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-sentient">
           Trust-minimized <br />
           <i className="font-light">agent escrow</i>
@@ -35,7 +35,7 @@ export function Hero() {
             [Launch App]
           </LandingButton>
         </Link>
-        <p className="font-mono text-[0.7rem] text-white/60 mt-3 uppercase tracking-wide">Needs MetaMask &middot; BOT Chain testnet</p>
+        <p className="font-mono text-[0.7rem] text-white/60 mt-3 uppercase tracking-wide">Needs MetaMask &middot; BOT Chain mainnet</p>
       </div>
     </div>
   );

@@ -13,16 +13,16 @@ export const CONTRACT_CONFIGURED = CONTRACT_ADDRESS !== ZERO_ADDRESS && CONTRACT
 
 export { CONTRACT_ABI } from "./agentEscrowAbi";
 
-export const BOTCHAIN_TESTNET = {
-  chainId: "0x3C8", // 968
-  chainName: "BOT Chain Testnet",
+export const BOTCHAIN_NETWORK = {
+  chainId: "0x2A5", // 677
+  chainName: "BOT Chain",
   nativeCurrency: { name: "BOT", symbol: "BOT", decimals: 18 },
-  rpcUrls: ["https://rpc.bohr.life"],
-  blockExplorerUrls: ["https://scan.bohr.life"],
+  rpcUrls: ["https://rpc.botchain.ai"],
+  blockExplorerUrls: ["https://scan.botchain.ai"],
 };
 
-export const BOTCHAIN_CHAIN_ID_DEC = 968;
-export const EXPLORER_BASE = "https://scan.bohr.life";
+export const BOTCHAIN_CHAIN_ID_DEC = 677;
+export const EXPLORER_BASE = "https://scan.botchain.ai";
 
 export const STATUS_NAMES = ["Open", "Accepted", "Submitted", "Released", "Refunded", "Cancelled"] as const;
 export type StatusName = (typeof STATUS_NAMES)[number];

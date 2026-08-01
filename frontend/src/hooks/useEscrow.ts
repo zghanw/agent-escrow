@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
 import {
   BOTCHAIN_CHAIN_ID_DEC,
-  BOTCHAIN_TESTNET,
+  BOTCHAIN_NETWORK,
   CONTRACT_ABI,
   CONTRACT_ADDRESS,
   CONTRACT_CONFIGURED,
@@ -474,14 +474,14 @@ export function useEscrow() {
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: BOTCHAIN_TESTNET.chainId }],
+        params: [{ chainId: BOTCHAIN_NETWORK.chainId }],
       });
     } catch (switchErr: any) {
       if (switchErr.code === 4902) {
         try {
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
-            params: [BOTCHAIN_TESTNET],
+            params: [BOTCHAIN_NETWORK],
           });
         } catch (addErr: any) {
           writeLog(withRefreshHint(`Could not add BOT Chain: ${addErr.shortMessage || addErr.message}`, addErr), "err");

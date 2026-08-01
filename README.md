@@ -6,7 +6,7 @@
   <p>
     <a href="https://www.agent-escrow.online/"><strong>Live App</strong></a>
     &nbsp;|&nbsp;
-    <a href="https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code"><strong>Verified Contract</strong></a>
+    <a href="https://scan.botchain.ai/address/0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B#code"><strong>Verified Mainnet Contract</strong></a>
     &nbsp;|&nbsp;
     <a href="contracts/AgentEscrow.sol"><strong>Source</strong></a>
     &nbsp;|&nbsp;
@@ -19,20 +19,32 @@
     <a href="https://tailwindcss.com/"><img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"></a>
     <a href="https://docs.ethers.org/v6/"><img alt="ethers.js 6" src="https://img.shields.io/badge/ethers.js_6-2535A0?style=for-the-badge&logo=ethereum&logoColor=white"></a>
     <a href="https://vite.dev/"><img alt="Vite 8" src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white"></a>
-    <a href="https://scan.bohr.life/"><img alt="BOT Chain Testnet" src="https://img.shields.io/badge/BOT_Chain_Testnet-FFD600?style=for-the-badge&labelColor=111111"></a>
+    <a href="https://scan.botchain.ai/"><img alt="BOT Chain Mainnet" src="https://img.shields.io/badge/BOT_Chain_Mainnet-FFD600?style=for-the-badge&labelColor=111111"></a>
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge"></a>
   </p>
 </div>
 
 <img src="docs/readme/landing.png" alt="Agent Escrow landing page with verified BOT Chain contract" width="100%">
 
-| Verified testnet proof | Source confidence | Direct architecture |
+| Verified mainnet contract | Source confidence | Direct architecture |
 |---|---|---|
-| [Live contract](https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code), deployed and verified on BOT Chain Explorer | [Contract lifecycle](contracts/AgentEscrow.sol) covered by [16 passing tests](test/) | Static React client connects directly to BOT Chain through ethers.js |
+| [Live contract](https://scan.botchain.ai/address/0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B#code), deployed and verified on BOT Chain Explorer | [Contract lifecycle](contracts/AgentEscrow.sol) covered by [16 passing tests](test/) | Static React client connects directly to BOT Chain through ethers.js |
 
 Agent Escrow replaces informal payment promises with a transparent contract state machine. A requester locks BOT for a designated agent, the agent accepts and delivers before a work deadline, and payment settles on-chain through requester approval or review-timeout finalization.
 
-**Deployment status:** Agent Escrow is live at [`0xf6C2Fb86E1f172c1aFddB665768827402C438592`](https://scan.bohr.life/address/0xf6C2Fb86E1f172c1aFddB665768827402C438592#code) on BOT Chain testnet, verified, and is the only contract the app talks to (the app fails closed if the deployment isn't configured, so it can never fall back to the retired V1 address below). Two full designated-agent cycles have already settled on it end to end.
+**Deployment status:** Agent Escrow is live on **BOT Chain mainnet** at [`0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B`](https://scan.botchain.ai/address/0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B#code) (chain ID `677`), verified, and is the only contract the app talks to (the app fails closed if the deployment isn't configured, so it can never fall back to a retired address). The exact same source was proven through two full designated-agent cycles on BOT Chain testnet first (screenshots and receipts below), before mainnet deployment.
+
+**Mainnet deployment record:**
+
+| Field | Value |
+|---|---|
+| Contract address | [`0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B`](https://scan.botchain.ai/address/0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B#code) |
+| Network | BOT Chain Mainnet (chain ID `677`) |
+| Deployed by | `0x1221C500Dfd0D3E477ed741a849edEa303d689Ca` |
+| Deployment transaction | [`0x9fc27618bd9f4475fd0583a75cd030764e5ef49e72ae07f19a6f95ebd4c13b56`](https://scan.botchain.ai/tx/0x9fc27618bd9f4475fd0583a75cd030764e5ef49e72ae07f19a6f95ebd4c13b56) |
+| Deployment block | `18167177` |
+| Deployment date | `2026-08-01` |
+| Compiler version | Solidity `0.8.24` |
 
 ## 60-second testnet demo
 
@@ -140,7 +152,7 @@ The contract is tested, not externally audited. Submission data proves that evid
 |---|---|
 | Contract | Solidity `0.8.24`, OpenZeppelin Contracts, Hardhat 3 |
 | Client | React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui |
-| Chain access | ethers.js 6, wallet provider, BOT Chain testnet RPC |
+| Chain access | ethers.js 6, wallet provider, BOT Chain RPC |
 | State | Contract reads, indexed wallet history, and event polling, with no backend database |
 | Hosting | Static GitHub Pages deployment with hash-based routing |
 
@@ -158,18 +170,18 @@ npm run build --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Deploy to BOT Chain testnet:
+Deploy to BOT Chain mainnet (the live deployment above) or testnet (for development):
 
 ```bash
 cp .env.example .env
-# Add a funded testnet wallet PRIVATE_KEY to .env
-npx hardhat run scripts/deploy.js --network botchainTestnet
-npx hardhat verify --network botchainTestnet <deployed-address>
+# Add a funded wallet PRIVATE_KEY to .env
+npx hardhat run scripts/deploy.js --network botchainMainnet   # or botchainTestnet
+npx hardhat verify --network botchainMainnet <deployed-address>
 ```
 
-The deploy script prints copy-ready `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK` values. Put them in `frontend/.env.local`, then build the frontend. The app fails closed when either value is missing, preventing the ABI from being used against the legacy V1 address.
+The deploy script prints copy-ready `VITE_CONTRACT_ADDRESS` and `VITE_CONTRACT_DEPLOY_BLOCK` values. Put them in `frontend/.env.local`, then build the frontend. The app fails closed when either value is missing, preventing the ABI from being used against a stale address.
 
-BOT Chain testnet uses chain ID `968`, RPC `https://rpc.bohr.life`, and explorer `https://scan.bohr.life`.
+BOT Chain mainnet uses chain ID `677`, RPC `https://rpc.botchain.ai`, and explorer `https://scan.botchain.ai`. BOT Chain testnet (chain ID `968`) uses `https://rpc.bohr.life` and `https://scan.bohr.life`.
 
 ## Project documentation
 

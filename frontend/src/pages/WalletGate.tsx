@@ -76,7 +76,7 @@ export default function WalletGate() {
               <div>
                 <p className="font-mono text-xs uppercase tracking-wide text-white/60 mb-1">02 &middot; Network</p>
                 <p className={`font-mono text-sm ${!walletDone ? ROW.pending : networkDone ? ROW.good : ROW.bad}`}>
-                  {!walletDone ? "—" : networkDone ? "BOT Chain testnet" : "Wrong network"}
+                  {!walletDone ? "—" : networkDone ? "BOT Chain" : "Wrong network"}
                 </p>
               </div>
               {walletDone && !networkDone && (
