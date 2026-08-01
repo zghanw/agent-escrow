@@ -85,7 +85,7 @@ export default function Dashboard() {
             />
           </TabsContent>
 
-          <TabsContent value="create" className="mt-4.5">
+          <TabsContent value="create" forceMount className="mt-4.5 data-[state=inactive]:hidden">
             <CreateBountyPanel disabled={!canInteract || escrow.busy} onCreate={escrow.createBounty} />
           </TabsContent>
 
