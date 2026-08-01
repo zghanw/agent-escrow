@@ -12,6 +12,7 @@ import { BountyDetailPanel } from "@/components/dashboard/BountyDetailPanel";
 import { TxLog } from "@/components/dashboard/TxLog";
 import { Vault } from "@/components/dashboard/Vault";
 import { ProfilePanel } from "@/components/dashboard/ProfilePanel";
+import { WalletLookupPanel } from "@/components/dashboard/WalletLookupPanel";
 import logoMark from "@/assets/logo.png";
 
 export default function Dashboard() {
@@ -38,6 +39,7 @@ export default function Dashboard() {
         <div className="space-y-2.5">
           <WalletBanner
             signerAddress={escrow.signerAddress}
+            botBalance={escrow.botBalance}
             onConnect={escrow.connectWallet}
             onSwitchAccount={escrow.switchAccount}
           />
@@ -54,6 +56,7 @@ export default function Dashboard() {
             <TabsTrigger value="bounties">Bounties</TabsTrigger>
             <TabsTrigger value="create">Create</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="wallets">Wallets</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
@@ -93,8 +96,28 @@ export default function Dashboard() {
             <EventFeedPanel feed={escrow.eventFeed} />
           </TabsContent>
 
+          <TabsContent value="wallets" forceMount className="mt-4.5 data-[state=inactive]:hidden">
+            <WalletLookupPanel
+              explorerBase={escrow.explorerBase}
+              loadHistory={escrow.loadWalletHistory}
+              onSelectBounty={(id) => {
+                void escrow.loadBounty(id);
+                setTab("bounties");
+              }}
+            />
+          </TabsContent>
+
           <TabsContent value="profile" className="mt-4.5">
-            <ProfilePanel signerAddress={escrow.signerAddress} explorerBase={escrow.explorerBase} ratingText={escrow.myRatingText} />
+            <ProfilePanel
+              signerAddress={escrow.signerAddress}
+              explorerBase={escrow.explorerBase}
+              loadHistory={escrow.loadWalletHistory}
+              historyVersion={escrow.walletHistoryVersion}
+              onSelectBounty={(id) => {
+                void escrow.loadBounty(id);
+                setTab("bounties");
+              }}
+            />
           </TabsContent>
         </Tabs>
 

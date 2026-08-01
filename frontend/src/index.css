@@ -258,6 +258,10 @@
 
 .dashboard-theme .dashboard-tabs-list {
   border-bottom: 1px solid var(--border);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 .dashboard-theme .dashboard-tabs-trigger {
   font-family: var(--font-mono);
@@ -400,6 +404,124 @@
 .dashboard-theme .log-line.err { color: var(--bad); }
 .dashboard-theme a { color: var(--primary); }
 .dashboard-theme a:hover { color: color-mix(in srgb, var(--primary) 80%, white); }
+
+.dashboard-theme .wallet-balance {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.dashboard-theme .wallet-lookup-form,
+.dashboard-theme .wallet-history-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.dashboard-theme .wallet-lookup-submit { margin-bottom: 1px; }
+.dashboard-theme .wallet-address-link {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+.dashboard-theme .wallet-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+.dashboard-theme .wallet-stat {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 88%, var(--primary) 2%);
+}
+.dashboard-theme .wallet-stat dt {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dashboard-theme .wallet-stat dd {
+  margin-top: 0.35rem;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.dashboard-theme .wallet-role-tabs { width: fit-content; }
+.dashboard-theme .wallet-history-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.dashboard-theme .wallet-history-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.dashboard-theme .wallet-history-row:last-child { border-bottom: 0; }
+.dashboard-theme .wallet-history-row:hover { background: var(--muted); }
+.dashboard-theme .wallet-history-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.dashboard-theme .wallet-history-main,
+.dashboard-theme .wallet-history-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.dashboard-theme .wallet-history-main { flex: 1; }
+.dashboard-theme .wallet-history-description {
+  overflow: hidden;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-theme .wallet-history-counterparty {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.dashboard-theme .wallet-history-meta {
+  flex: 0 0 auto;
+  align-items: flex-end;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 520px) {
+  .dashboard-theme .wallet-lookup-form,
+  .dashboard-theme .wallet-history-heading,
+  .dashboard-theme .wallet-history-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .dashboard-theme .wallet-lookup-submit { width: 100%; }
+  .dashboard-theme .wallet-history-meta {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard-theme .wallet-stats { grid-template-columns: 1fr; }
+}
 
 /* ---------------------------------------------------------------------
    Landing theme (/) - ported from the skal-ventures-template reference:

@@ -1,40 +1,76 @@
+import { useCallback, useEffect, useState } from "react";
+import type { WalletHistoryResult } from "@/lib/walletHistory";
 import { Panel } from "./Panel";
+import { WalletHistoryPanel } from "./WalletHistoryPanel";
 
 export function ProfilePanel({
   signerAddress,
   explorerBase,
-  ratingText,
+  loadHistory,
+  historyVersion,
+  onSelectBounty,
 }: {
   signerAddress: string | null;
   explorerBase: string;
-  ratingText: string | null;
+  loadHistory: (address: string, force?: boolean) => Promise<WalletHistoryResult>;
+  historyVersion: number;
+  onSelectBounty: (id: bigint) => void;
 }) {
-  if (!signerAddress) {
-    return (
-      <Panel heading="Profile">
-        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-          Connect your wallet to see your agent rating here.
-        </p>
-      </Panel>
-    );
-  }
+  const [result, setResult] = useState<WalletHistoryResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const currentResult = signerAddress && result?.address.toLowerCase() === signerAddress.toLowerCase() ? result : null;
+
+  const load = useCallback(async (force: boolean) => {
+    if (!signerAddress) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(await loadHistory(signerAddress, force));
+    } catch {
+      setError("Could not load your profile. Try refreshing the website.");
+    } finally {
+      setLoading(false);
+    }
+  }, [loadHistory, signerAddress]);
+
+  useEffect(() => {
+    let active = true;
+    if (!signerAddress) {
+      setResult(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    loadHistory(signerAddress).then(
+      (next) => {
+        if (active) setResult(next);
+      },
+      () => {
+        if (active) setError("Could not load your profile. Try refreshing the website.");
+      },
+    ).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [historyVersion, loadHistory, signerAddress]);
 
   return (
     <Panel heading="Profile">
-      <dl className="space-y-1">
-        <dt className="field-label">Address</dt>
-        <dd>
-          <a className="mono" href={`${explorerBase}/address/${signerAddress}`} target="_blank" rel="noopener">
-            {signerAddress}
-          </a>
-        </dd>
-        <dt className="field-label">Agent rating</dt>
-        <dd>{ratingText ?? "Loading…"}</dd>
-      </dl>
-      <p className="text-sm mt-3" style={{ color: "var(--muted-foreground)" }}>
-        This is your rating as an agent - it accumulates whenever a requester rates you after releasing a bounty you
-        completed and released.
-      </p>
+      {!signerAddress && <p className="text-sm text-[var(--muted-foreground)]">Connect your wallet to view your profile.</p>}
+      {signerAddress && loading && !currentResult && <p className="text-sm text-[var(--muted-foreground)]">Loading profile...</p>}
+      {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
+      {currentResult && (
+        <WalletHistoryPanel
+          result={currentResult}
+          explorerBase={explorerBase}
+          onSelectBounty={onSelectBounty}
+          onRefresh={() => void load(true)}
+          refreshing={loading}
+        />
+      )}
     </Panel>
   );
 }
