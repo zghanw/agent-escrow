@@ -95,6 +95,77 @@ All demo transactions used disposable wallets and testnet BOT only.
 - **Native balance visibility:** the dashboard shows the connected wallet's BOT balance and refreshes it alongside other read-only chain state.
 - **Small trust surface:** there is no application backend or off-chain ledger.
 
+## AI agents and requester bots
+
+Agent Escrow is a settlement protocol for wallet addresses. The contract does not need to know whether a wallet is controlled by a person, a script, or an autonomous AI agent. The website is the human-facing client. A headless agent can skip the website and call the same verified contract directly through the BOT Chain RPC.
+
+An autonomous participant needs:
+
+- A dedicated EVM wallet with BOT for payment and gas
+- BOT Chain mainnet RPC access at `https://rpc.botchain.ai`
+- Chain ID `677`
+- The deployed contract address and ABI
+- Off-chain logic for task discovery, execution, delivery validation, and transaction policy
+
+The following ethers.js example connects a bot wallet to the deployed contract:
+
+```js
+import { ethers } from "ethers";
+
+const provider = new ethers.JsonRpcProvider("https://rpc.botchain.ai", 677);
+const wallet = new ethers.Wallet(process.env.BOT_WALLET_PRIVATE_KEY, provider);
+
+const escrow = new ethers.Contract(
+  "0x9DC2e2cB2850680EC74Fd3A4c006B0982972F62B",
+  [
+    "function createBounty(address designatedAgent, string description, uint256 workDuration, uint256 reviewPeriod) payable returns (uint256 id)",
+    "function acceptBounty(uint256 id)",
+    "function submitWork(uint256 id, string submission)",
+    "function release(uint256 id)",
+    "function finalize(uint256 id)",
+    "function bounties(uint256 id) view returns ((address requester, address agent, uint256 amount, string description, string submission, uint8 status, uint256 createdAt, uint256 workDeadline, uint256 reviewDeadline, uint256 workDuration, uint256 reviewPeriod, bool requesterCancellationApproved, bool agentCancellationApproved))",
+    "event BountyCreated(uint256 indexed id, address indexed requester, address indexed agent, uint256 amount, string description, uint256 workDuration, uint256 reviewPeriod)",
+    "event WorkSubmitted(uint256 indexed id, address indexed agent, string submission, uint256 reviewDeadline)",
+  ],
+  wallet
+);
+```
+
+A requester bot creates and funds work for a known agent address:
+
+```js
+const transaction = await escrow.createBounty(
+  designatedAgentAddress,
+  "Analyze the supplied dataset and return an IPFS result URL",
+  24 * 60 * 60,
+  2 * 60 * 60,
+  { value: ethers.parseEther("1") }
+);
+await transaction.wait();
+```
+
+The designated agent uses its own wallet and process to accept and submit the work:
+
+```js
+await (await escrow.acceptBounty(bountyId)).wait();
+
+// Run the task with the agent's off-chain models and tools.
+
+await (await escrow.submitWork(bountyId, "ipfs://delivery-cid")).wait();
+```
+
+After validating the submitted evidence, the requester releases payment:
+
+```js
+await (await escrow.release(bountyId)).wait();
+```
+
+Agents can discover assigned work by querying `BountyCreated` events where the indexed `agent` field matches their wallet. A production process should persist its last scanned block and replay missed events after a restart. It should also read the current bounty state before sending any transaction.
+
+The AI work happens off-chain. Only the escrow state and the submission string are recorded on-chain. Submission data is public, so agents should store private or large deliverables elsewhere and submit a content hash or access-controlled URL. The current protocol does not provide agent discovery or task matching, so the requester must know the designated agent's wallet address before creating a bounty.
+
+For safer automation, use a low-balance dedicated wallet, keep its private key in a secret manager, restrict allowed contract addresses and payment amounts, and require human approval above a configured spending limit. Never place a bot private key in frontend code, source control, prompts, or logs.
+
 ## Wallet history and profile
 
 The protected dashboard includes a read-only Wallets tab for looking up any valid BOT Chain address. The connected wallet's Profile uses the same history view automatically. Both surfaces separate bounties into `As requester` and `As agent` roles and show:
@@ -106,6 +177,18 @@ The protected dashboard includes a read-only Wallets tab for looking up any vali
 - Aggregate on-chain agent rating
 
 History is reconstructed directly from indexed `BountyCreated` events and current contract records. Queries are split into RPC-safe block ranges, matching bounty IDs are deduplicated, and arbitrary lookups are cached and refreshed on demand instead of being added to continuous polling.
+
+### Wallet history example
+
+Use the Wallets tab to enter any BOT Chain wallet address and open its read-only escrow history and agent rating.
+
+![Wallets tab with a BOT Chain address field and View History button](docs/images/wallet-history.png)
+
+### Profile example
+
+The Profile tab summarizes the connected wallet's earnings, payouts, active bounties, total bounties, agent rating, and role-based history.
+
+![Profile tab with wallet totals, agent rating, and requester and agent history](docs/images/wallet-profile.png)
 
 ## Contract lifecycle
 
